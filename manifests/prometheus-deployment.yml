@@ -1,0 +1,62 @@
+#
+# Copyright (c) 2018 Red Hat, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+#
+# This deployment creates a simple instance of Prometheus, controlled by the
+# launcher that takes care of updating the configuration and reloading it when
+# then alerting rules are added to the system.
+#
+
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: prometheus
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: prometheus
+    spec:
+      serviceAccountName: prometheus
+      containers:
+
+      # Metrics collector, managed by the launcher:
+      - name: collector
+        image: openshift-monitoring/metrics-collector:0.0.0
+        ports:
+        - containerPort: 9090
+        securityContext:
+          runAsUser: 1000000000 # Must match the UID in the image.
+
+      # Alert manager:
+      - name: manager
+        image: openshift-monitoring/alert-manager:0.0.0
+        ports:
+        - containerPort: 9093
+        securityContext:
+          runAsUser: 1000000000 # Must match the UID in the image.
+
+      # Alert publisher:
+      - name: publisher
+        image: openshift-monitoring/alert-publisher:0.0.0
+        ports:
+        - containerPort: 9099
+        securityContext:
+          runAsUser: 1000000000 # Must match the UID in the image.

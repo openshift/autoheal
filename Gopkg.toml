@@ -1,0 +1,22 @@
+[[constraint]]
+  name = "github.com/golang/glog"
+  revision = "23def4e6c14b4da8ac2ed8007337bc5eb5007998"
+
+[[constraint]]
+  name = "k8s.io/api"
+  version = "kubernetes-1.9.2"
+
+[[constraint]]
+  name = "k8s.io/apimachinery"
+  version = "kubernetes-1.9.2"
+
+[[constraint]]
+  name = "k8s.io/client-go"
+  version = "kubernetes-1.9.2"
+
+# This isn't a dependency of the code, but of the build process, as we need the
+# code generator to generate the client code for our custom resource
+# definitions.
+[[override]]
+  name = "k8s.io/code-generator"
+  version = "kubernetes-1.9.2"

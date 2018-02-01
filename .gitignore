@@ -1,0 +1,13 @@
+*.log
+*.swp
+*.tar
+*.tar.gz
+.hash
+/.downloads
+/.gopath
+/CHANGES.html
+/README.html
+/pkg/client
+/vendor
+zz_generated.deepcopy.go
+/.idea

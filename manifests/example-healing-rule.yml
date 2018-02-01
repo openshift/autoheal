@@ -1,0 +1,9 @@
+apiVersion: monitoring.openshift.io/v1alpha1
+kind: HealingRule
+metadata:
+  name: example
+spec:
+  conditions:
+  - alert: example
+  actions:
+  - playbook: example-playbook

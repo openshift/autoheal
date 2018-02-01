@@ -1,0 +1,10 @@
+apiVersion: monitoring.openshift.io/v1alpha1
+kind: AlertingRule
+metadata:
+  name: example
+spec:
+  alert: example
+  expr: up{job="kubernetes-nodes"} < 2
+  annotations:
+    severity: "HIGH"
+    message: "There are less than two nodes up"
