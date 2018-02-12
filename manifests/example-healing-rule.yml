@@ -6,4 +6,9 @@ spec:
   conditions:
   - alert: example
   actions:
-  - playbook: example-playbook
+  - awxJob:
+      address: https://tower.yellow/api
+      proxy: http://server0.mad.redhat.com:3128
+      secret: awx
+      project: "Demo Project"
+      template: "Demo Job Template"

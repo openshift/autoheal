@@ -36,23 +36,23 @@ func NewJobTemplateLaunchResource(connection *Connection, path string) *JobTempl
 
 func (r *JobTemplateLaunchResource) Get() *JobTemplateLaunchGetRequest {
 	request := new(JobTemplateLaunchGetRequest)
-	request.resource = r
+	request.resource = &r.Resource
 	return request
 }
 
 func (r *JobTemplateLaunchResource) Post() *JobTemplateLaunchPostRequest {
 	request := new(JobTemplateLaunchPostRequest)
-	request.resource = r
+	request.resource = &r.Resource
 	return request
 }
 
 type JobTemplateLaunchGetRequest struct {
-	resource *JobTemplateLaunchResource
+	Request
 }
 
 func (r *JobTemplateLaunchGetRequest) Send() (response *JobTemplateLaunchGetResponse, err error) {
 	output := new(data.JobTemplateLaunchGetResponse)
-	err = r.resource.get(output)
+	err = r.get(output)
 	if err != nil {
 		return
 	}
@@ -74,7 +74,8 @@ func (r *JobTemplateLaunchGetResponse) JobTemplateData() *JobTemplate {
 }
 
 type JobTemplateLaunchPostRequest struct {
-	resource  *JobTemplateLaunchResource
+	Request
+
 	extraVars string
 }
 
@@ -90,7 +91,7 @@ func (r *JobTemplateLaunchPostRequest) Send() (response *JobTemplateLaunchPostRe
 
 	// Send the request:
 	output := new(data.JobTemplateLaunchPostResponse)
-	err = r.resource.post(input, output)
+	err = r.post(input, output)
 	if err != nil {
 		return
 	}

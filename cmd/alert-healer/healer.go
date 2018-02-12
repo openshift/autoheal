@@ -17,47 +17,48 @@ limitations under the License.
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/golang/glog"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
+	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	monitoring "github.com/jhernand/openshift-monitoring/pkg/apis/monitoring/v1alpha1"
 	awx "github.com/jhernand/openshift-monitoring/pkg/awx"
-	informers "github.com/jhernand/openshift-monitoring/pkg/client/informers"
-	listers "github.com/jhernand/openshift-monitoring/pkg/client/listers/monitoring/v1alpha1"
+	genericinf "github.com/jhernand/openshift-monitoring/pkg/client/informers"
+	typedinf "github.com/jhernand/openshift-monitoring/pkg/client/informers/monitoring/v1alpha1"
 	openshift "github.com/jhernand/openshift-monitoring/pkg/client/openshift"
 )
 
 // HealerBuilder is used to create new healers.
 //
 type HealerBuilder struct {
-	// Client.
-	client openshift.Interface
+	// Clients.
+	k8sClient kubernetes.Interface
+	osClient  openshift.Interface
 
 	// Informer factory.
-	informerFactory informers.SharedInformerFactory
+	informerFactory genericinf.SharedInformerFactory
 }
 
 // Healer contains the information needed to receive notifications about changes in the
 // Prometheus configuration and to start or reload it when there are changes.
 //
 type Healer struct {
-	// Clients.
-	client openshift.Interface
+	// Client.
+	k8sClient kubernetes.Interface
+	osClient  openshift.Interface
 
 	// Informer factory.
-	informerFactory informers.SharedInformerFactory
+	informerFactory genericinf.SharedInformerFactory
 
-	// Listers.
-	alertLister       listers.AlertLister
-	healingRuleLister listers.HealingRuleLister
-
-	// Sync checkers.
-	alertsSynced       cache.InformerSynced
-	healingRulesSynced cache.InformerSynced
+	// Informers.
+	alertInformer       typedinf.AlertInformer
+	healingRuleInformer typedinf.HealingRuleInformer
 }
 
 // NewHealerBuilder creates a new builder for healers.
@@ -67,16 +68,23 @@ func NewHealerBuilder() *HealerBuilder {
 	return b
 }
 
-// Client sets the OpenShift client that will be used by the healer.
+// KubernetesClient sets the Kubernetes client that will be used by the healer.
 //
-func (b *HealerBuilder) Client(client openshift.Interface) *HealerBuilder {
-	b.client = client
+func (b *HealerBuilder) KubernetesClient(client kubernetes.Interface) *HealerBuilder {
+	b.k8sClient = client
+	return b
+}
+
+// OpenShiftClient sets the OpenShift client that will be used by the healer.
+//
+func (b *HealerBuilder) OpenShiftClient(client openshift.Interface) *HealerBuilder {
+	b.osClient = client
 	return b
 }
 
 // InformerFactory sets the OpenShift informer factory that will be used by the healer.
 //
-func (b *HealerBuilder) InformerFactory(factory informers.SharedInformerFactory) *HealerBuilder {
+func (b *HealerBuilder) InformerFactory(factory genericinf.SharedInformerFactory) *HealerBuilder {
 	b.informerFactory = factory
 	return b
 }
@@ -87,19 +95,35 @@ func (b *HealerBuilder) Build() (h *Healer, err error) {
 	// Allocate the healer:
 	h = new(Healer)
 
-	// Save the references to the OpenShift client:
-	h.client = b.client
+	// Save the references to the clients:
+	h.k8sClient = b.k8sClient
+	h.osClient = b.osClient
 
-	// Get references to the informer:
-	alertInformer := b.informerFactory.Monitoring().V1alpha1().Alerts()
-	h.alertLister = alertInformer.Lister()
-	h.alertsSynced = alertInformer.Informer().HasSynced
-	healingRuleInformer := b.informerFactory.Monitoring().V1alpha1().HealingRules()
-	h.healingRuleLister = healingRuleInformer.Lister()
-	h.healingRulesSynced = healingRuleInformer.Informer().HasSynced
+	// Save the reference to the informer factory:
+	h.informerFactory = b.informerFactory
+
+	return
+}
+
+// Run waits for the informers caches to sync, and then starts the healer.
+//
+func (h *Healer) Run(stopCh <-chan struct{}) error {
+	defer runtime.HandleCrash()
+
+	// Create the informers:
+	h.alertInformer = h.informerFactory.Monitoring().V1alpha1().Alerts()
+	h.healingRuleInformer = h.informerFactory.Monitoring().V1alpha1().HealingRules()
+
+	// Wait for the caches to be synced before starting the worker:
+	glog.Info("Waiting for informer caches to sync")
+	alertsSynced := h.alertInformer.Informer().HasSynced
+	healingRulesSynced := h.healingRuleInformer.Informer().HasSynced
+	if ok := cache.WaitForCacheSync(stopCh, alertsSynced, healingRulesSynced); !ok {
+		return fmt.Errorf("Failed to wait for caches to sync")
+	}
 
 	// Set up an event handler for when alerts are created, modified or deleted:
-	alertInformer.Informer().AddEventHandler(
+	h.alertInformer.Informer().AddEventHandler(
 		cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
 				switch change := obj.(type) {
@@ -134,20 +158,6 @@ func (b *HealerBuilder) Build() (h *Healer, err error) {
 		},
 	)
 
-	return
-}
-
-// Run waits for the informers caches to sync, and then starts the healer.
-//
-func (h *Healer) Run(stopCh <-chan struct{}) error {
-	defer runtime.HandleCrash()
-
-	// Wait for the caches to be synced before starting the worker:
-	glog.Info("Waiting for informer caches to sync")
-	if ok := cache.WaitForCacheSync(stopCh, h.alertsSynced, h.healingRulesSynced); !ok {
-		return fmt.Errorf("Failed to wait for caches to sync")
-	}
-
 	// Wait till we are requested to stop:
 	<-stopCh
 
@@ -158,7 +168,8 @@ func (h *Healer) Run(stopCh <-chan struct{}) error {
 //
 func (h *Healer) handleAlertChange(alert *monitoring.Alert) {
 	// Load the healing rules:
-	rules, err := h.healingRuleLister.List(labels.Everything())
+	glog.Info("Listing healing rules")
+	rules, err := h.healingRuleInformer.Lister().List(labels.Everything())
 	if err != nil {
 		glog.Info("Can't load healing rules: %s", err.Error())
 	}
@@ -187,6 +198,11 @@ func (h *Healer) handleAlertChange(alert *monitoring.Alert) {
 }
 
 func (h *Healer) checkConditions(rule *monitoring.HealingRule, alert *monitoring.Alert) bool {
+	glog.Infof(
+		"Checking conditions of rule '%s' for alert '%s'",
+		rule.ObjectMeta.Name,
+		alert.ObjectMeta.Name,
+	)
 	if rule.Spec.Conditions != nil && len(rule.Spec.Conditions) > 0 {
 		for i := 0; i < len(rule.Spec.Conditions); i++ {
 			if !h.checkCondition(&rule.Spec.Conditions[i], alert) {
@@ -209,7 +225,7 @@ func (h *Healer) runActions(rule *monitoring.HealingRule, alert *monitoring.Aler
 			alert.ObjectMeta.Name,
 		)
 		for i := 0; i < len(rule.Spec.Actions); i++ {
-			h.runAction(&rule.Spec.Actions[i], alert)
+			h.runAction(rule, &rule.Spec.Actions[i], alert)
 		}
 	} else {
 		glog.Warningf(
@@ -220,31 +236,41 @@ func (h *Healer) runActions(rule *monitoring.HealingRule, alert *monitoring.Aler
 	}
 }
 
-func (h *Healer) runAction(action *monitoring.HealingAction, alert *monitoring.Alert) {
-	if action.AWX != nil {
-		h.runAWX(action.AWX, alert)
+func (h *Healer) runAction(rule *monitoring.HealingRule, action *monitoring.HealingAction, alert *monitoring.Alert) {
+	if action.AWXJob != nil {
+		h.runAWXJob(rule, action.AWXJob, alert)
 	} else {
 		glog.Warningf(
-			"There are no action details, action will have no effect on alert '%s'",
+			"There are no action details, rule '%s' will have no effect on alert '%s'",
+			rule.ObjectMeta.Name,
 			alert.ObjectMeta.Name,
 		)
 	}
 }
 
-func (h *Healer) runAWX(action *monitoring.AWXAction, alert *monitoring.Alert) {
+func (h *Healer) runAWXJob(rule *monitoring.HealingRule, action *monitoring.AWXJobAction, alert *monitoring.Alert) {
 	glog.Infof(
-		"Running AWX action for alert '%s'",
+		"Running AWX job from project '%s' and template '%s' to heal alert '%s'",
+		action.Project,
+		action.Template,
 		alert.ObjectMeta.Name,
 	)
-	glog.Infof("Project is '%s'", action.Project)
-	glog.Infof("Job template is '%s'", action.JobTemplate)
+
+	// Load the AWX credentials:
+	username, password, err := h.loadAWXSecret(rule.ObjectMeta.Namespace, action.Secret)
+	if err != nil {
+		glog.Errorf(
+			"Can't load AWX credentials from secret '%s': %s",
+			action.Secret,
+		)
+	}
 
 	// Create the connection to the AWX server:
 	connection, err := awx.NewConnectionBuilder().
-		Url("https://tower.yellow/api/v2/").
-		Proxy("http://server0.mad.redhat.com:3128").
-		Username("admin").
-		Password("redhat123").
+		Url(action.Address).
+		Proxy(action.Proxy).
+		Username(username).
+		Password(password).
 		Insecure(true).
 		Build()
 	if err != nil {
@@ -252,4 +278,109 @@ func (h *Healer) runAWX(action *monitoring.AWXAction, alert *monitoring.Alert) {
 		return
 	}
 	defer connection.Close()
+
+	// Retrieve the job template:
+	templatesResource := connection.JobTemplates()
+	templatesResponse, err := templatesResource.Get().
+		Filter("project__name", action.Project).
+		Filter("name", action.Template).
+		Send()
+	if err != nil {
+		glog.Errorf(
+			"Can't retrieve AWX job templates named '%s' for project '%s': %s",
+			action.Template,
+			action.Project,
+			err.Error(),
+		)
+		return
+	}
+	if templatesResponse.Count() == 0 {
+		glog.Errorf(
+			"There are no AWX job templates named '%s' for project '%s'",
+			action.Template,
+			action.Project,
+		)
+		return
+	}
+
+	// Launch the jobs:
+	for _, template := range templatesResponse.Results() {
+		h.launchAWXJob(connection, template, alert)
+	}
+}
+
+func (h *Healer) launchAWXJob(connection *awx.Connection, template *awx.JobTemplate, alert *monitoring.Alert) {
+	// Convert the alert to a JSON document in order to pass it as the content of the extra
+	// variables of the AWX job:
+	alertJSON, err := json.Marshal(alert)
+	if err != nil {
+		glog.Errorf(
+			"Can't convert alert '%s' to JSON: %s'",
+			alert.ObjectMeta.Name,
+			err.Error(),
+		)
+	}
+
+	// Send the request to launch the job:
+	templateId := template.Id()
+	templateName := template.Name()
+	launchResource := connection.JobTemplates().Id(templateId).Launch()
+	_, err = launchResource.Post().
+		ExtraVars(string(alertJSON)).
+		Send()
+	if err != nil {
+		glog.Errorf(
+			"Can't send request to launch job from template '%s': %s",
+			templateName,
+			err.Error(),
+		)
+	}
+	glog.Infof(
+		"Request to launch AWX job from template '%s' has been sent",
+		templateName,
+	)
+}
+
+func (h* Healer) loadAWXSecret(namespace, name string) (username, password string, err error) {
+	var data []byte
+	var ok bool
+
+	// Retrieve the secret:
+	resource := h.k8sClient.CoreV1().Secrets(namespace)
+	secret, err := resource.Get(name, meta.GetOptions{})
+	if err != nil {
+		err = fmt.Errorf(
+			"Can't load secret '%s' from namespace '%s': %s",
+			name,
+			namespace,
+			err.Error(),
+		)
+		return
+	}
+
+	// Extract the user name:
+	data, ok = secret.Data["username"]
+	if !ok {
+		err = fmt.Errorf(
+			"Secret '%s' from namespace '%s' doesn't contain the 'username' entry",
+			name,
+			namespace,
+		)
+		return
+	}
+	username = string(data)
+
+	// Extract the password:
+	data, ok = secret.Data["password"]
+	if !ok {
+		err = fmt.Errorf(
+			"Secret '%s' from namespace '%s' doesn't contain the 'password' entry",
+			name,
+			namespace,
+		)
+		return
+	}
+	password = string(data)
+
+	return
 }

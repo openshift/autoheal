@@ -18,17 +18,21 @@ limitations under the License.
 
 package awx
 
+import (
+	"net/url"
+)
+
 type Resource struct {
 	connection *Connection
 	path       string
 }
 
-func (r *Resource) get(output interface{}) error {
-	return r.connection.authenticatedGet(r.path, output)
+func (r *Resource) get(query url.Values, output interface{}) error {
+	return r.connection.authenticatedGet(r.path, query, output)
 }
 
-func (r *Resource) post(input interface{}, output interface{}) error {
-	return r.connection.authenticatedPost(r.path, input, output)
+func (r *Resource) post(query url.Values, input interface{}, output interface{}) error {
+	return r.connection.authenticatedPost(r.path, query, input, output)
 }
 
 func (r *Resource) String() string {

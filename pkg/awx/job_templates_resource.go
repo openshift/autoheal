@@ -20,6 +20,8 @@ limitations under the License.
 package awx
 
 import (
+	"fmt"
+
 	"github.com/jhernand/openshift-monitoring/pkg/awx/internal/data"
 )
 
@@ -36,18 +38,16 @@ func NewJobTemplatesResource(connection *Connection, path string) *JobTemplatesR
 
 func (r *JobTemplatesResource) Get() *JobTemplatesGetRequest {
 	request := new(JobTemplatesGetRequest)
-	request.resource = r
+	request.resource = &r.Resource
 	return request
 }
 
-func (r *JobTemplatesResource) Id(id string) *JobTemplateResource {
-	return NewJobTemplateResource(r.connection, r.path+"/"+id)
+func (r *JobTemplatesResource) Id(id int) *JobTemplateResource {
+	return NewJobTemplateResource(r.connection, fmt.Sprintf("%s/%d", r.path, id))
 }
 
 type JobTemplatesGetRequest struct {
-	ListRequest
-
-	resource *JobTemplatesResource
+	Request
 }
 
 func (r *JobTemplatesGetRequest) Filter(name string, value interface{}) *JobTemplatesGetRequest {
@@ -57,7 +57,7 @@ func (r *JobTemplatesGetRequest) Filter(name string, value interface{}) *JobTemp
 
 func (r *JobTemplatesGetRequest) Send() (response *JobTemplatesGetResponse, err error) {
 	output := new(data.JobTemplatesGetResponse)
-	err = r.resource.get(output)
+	err = r.get(output)
 	if err != nil {
 		return
 	}

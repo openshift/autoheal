@@ -181,21 +181,34 @@ type HealingCondition struct {
 // HealingAction represents an action that will be performed when a healing rule is activated.
 //
 type HealingAction struct {
-	// AWX is used when the healing action is implemented by an Ansible AWX job.
+	// AWXJob is used when the healing action is implemented by an Ansible AWX job.
 	// +optional
-	AWX *AWXAction `json:"awx,omitempty" protobuf:"bytes,1,opt,name=awx`
+	AWXJob *AWXJobAction `json:"awxJob,omitempty" protobuf:"bytes,1,opt,name=awxJob`
 }
 
-// AWXAction describes how to run an Ansible AWX job.
+// AWXJobAction describes how to run an Ansible AWX job.
 //
-type AWXAction struct {
-	// The name of the project that contains the job template.
+type AWXJobAction struct {
+	// Address is the complete URL used to access the API of the AWX server.
 	// +optional
-	Project string `json:"project,omitempty" protobuf:"bytes,1,opt,name=project`
+	Address string `json:"address,omitempty" protobuf:"bytes,1,opt,name=address`
 
-	// The name of the job template.
+	// Proxy is the address of the proxy server used to access the API of the AWX server.
 	// +optional
-	JobTemplate string `json:"jobTemplate,omitempty" protobuf:"bytes,2,opt,name=jobTemplate`
+	Proxy string `json:"proxy,omitempty" protobuf:"bytes,2,opt,name=proxy`
+
+	// Secret is the name of the secret that contains the user name and password used to access the
+	// AWX API.
+	// +optional
+	Secret string `json:"secret,omitempty" protobuf:"bytes,2,opt,name=secret`
+
+	// Project is the name of the AWX project that contains the job template.
+	// +optional
+	Project string `json:"project,omitempty" protobuf:"bytes,3,opt,name=project`
+
+	// Template is the name of the AWX job template that will be launched.
+	// +optional
+	Template string `json:"template,omitempty" protobuf:"bytes,4,opt,name=template`
 }
 
 // HealingRuleStatus is the status for an alerting rule.

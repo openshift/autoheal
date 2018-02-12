@@ -21,15 +21,25 @@ package awx
 
 import (
 	"fmt"
+	"net/url"
 )
 
-type ListRequest struct {
-	filters map[string]string
+type Request struct {
+	resource *Resource
+	query    url.Values
 }
 
-func (r *ListRequest) addFilter(name string, value interface{}) {
-	if r.filters == nil {
-		r.filters = make(map[string]string)
+func (r *Request) addFilter(name string, value interface{}) {
+	if r.query == nil {
+		r.query = make(url.Values)
 	}
-	r.filters[name] = fmt.Sprintf("%s", value)
+	r.query.Add(name, fmt.Sprintf("%s", value))
+}
+
+func (r *Request) get(output interface{}) error {
+	return r.resource.get(r.query, output)
+}
+
+func (r *Request) post(input interface{}, output interface{}) error {
+	return r.resource.post(r.query, input, output)
 }

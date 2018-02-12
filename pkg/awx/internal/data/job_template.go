@@ -18,7 +18,11 @@ limitations under the License.
 
 package data
 
-type JobTemplateGetResponse struct {
+type JobTemplate struct {
 	Id   int    `json:"id,omitempty"`
 	Name string `json:"name,omitempty"`
+}
+
+type JobTemplateGetResponse struct {
+	JobTemplate
 }

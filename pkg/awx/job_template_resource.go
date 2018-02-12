@@ -36,7 +36,7 @@ func NewJobTemplateResource(connection *Connection, path string) *JobTemplateRes
 
 func (r *JobTemplateResource) Get() *JobTemplateGetRequest {
 	request := new(JobTemplateGetRequest)
-	request.resource = r
+	request.resource = &r.Resource
 	return request
 }
 
@@ -45,12 +45,12 @@ func (r *JobTemplateResource) Launch() *JobTemplateLaunchResource {
 }
 
 type JobTemplateGetRequest struct {
-	resource *JobTemplateResource
+	Request
 }
 
 func (r *JobTemplateGetRequest) Send() (response *JobTemplateGetResponse, err error) {
 	data := new(data.JobTemplateGetResponse)
-	err = r.resource.get(data)
+	err = r.get(data)
 	if err != nil {
 		return
 	}

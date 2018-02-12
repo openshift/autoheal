@@ -191,7 +191,7 @@ func (c *Connection) getToken() error {
 	var response data.AuthTokenPostResponse
 	request.Username = c.username
 	request.Password = c.password
-	err := c.post("authtoken", &request, &response)
+	err := c.post("authtoken", nil, &request, &response)
 	if err != nil {
 		return err
 	}
@@ -199,9 +199,9 @@ func (c *Connection) getToken() error {
 	return nil
 }
 
-// makeUrl calculates the absolute URL for the given relative path.
+// makeUrl calculates the absolute URL for the given relative path and query.
 //
-func (c *Connection) makeUrl(path string) string {
+func (c *Connection) makeUrl(path string, query url.Values) string {
 	// Allocate a buffer large enough for the longest possible URL:
 	buffer := new(bytes.Buffer)
 	buffer.Grow(len(c.base) + len(c.version) + 1 + len(path) + 1)
@@ -218,28 +218,34 @@ func (c *Connection) makeUrl(path string) string {
 	// redirect:
 	buffer.WriteString("/")
 
+	// Add the query:
+	if query != nil && len(query) > 0 {
+		buffer.WriteString("?")
+		buffer.WriteString(query.Encode())
+	}
+
 	return buffer.String()
 }
 
-func (c *Connection) authenticatedGet(path string, output interface{}) error {
+func (c *Connection) authenticatedGet(path string, query url.Values, output interface{}) error {
 	err := c.ensureToken()
 	if err != nil {
 		return err
 	}
-	return c.get(path, output)
+	return c.get(path, query, output)
 }
 
-func (c *Connection) get(path string, output interface{}) error {
-	outputBytes, err := c.rawGet(path)
+func (c *Connection) get(path string, query url.Values, output interface{}) error {
+	outputBytes, err := c.rawGet(path, query)
 	if err != nil {
 		return err
 	}
 	return json.Unmarshal(outputBytes, output)
 }
 
-func (c *Connection) rawGet(path string) (output []byte, err error) {
+func (c *Connection) rawGet(path string, query url.Values) (output []byte, err error) {
 	// Send the request:
-	address := c.makeUrl(path)
+	address := c.makeUrl(path, query)
 	if glog.V(2) {
 		glog.Infof("Sending GET request to '%s'.", address)
 	}
@@ -269,29 +275,29 @@ func (c *Connection) rawGet(path string) (output []byte, err error) {
 	return
 }
 
-func (c *Connection) authenticatedPost(path string, input interface{}, output interface{}) error {
+func (c *Connection) authenticatedPost(path string, query url.Values, input interface{}, output interface{}) error {
 	err := c.ensureToken()
 	if err != nil {
 		return err
 	}
-	return c.post(path, input, output)
+	return c.post(path, query, input, output)
 }
 
-func (c *Connection) post(path string, input interface{}, output interface{}) error {
+func (c *Connection) post(path string, query url.Values, input interface{}, output interface{}) error {
 	inputBytes, err := json.Marshal(input)
 	if err != nil {
 		return err
 	}
-	outputBytes, err := c.rawPost(path, inputBytes)
+	outputBytes, err := c.rawPost(path, query, inputBytes)
 	if err != nil {
 		return err
 	}
 	return json.Unmarshal(outputBytes, output)
 }
 
-func (c *Connection) rawPost(path string, input []byte) (output []byte, err error) {
+func (c *Connection) rawPost(path string, query url.Values, input []byte) (output []byte, err error) {
 	// Post the input bytes:
-	address := c.makeUrl(path)
+	address := c.makeUrl(path, query)
 	if glog.V(2) {
 		glog.Infof("Sending POST request to '%s'.", address)
 		glog.Infof("Request body:\n%s", c.indent(input))

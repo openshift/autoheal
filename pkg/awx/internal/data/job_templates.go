@@ -21,5 +21,5 @@ package data
 type JobTemplatesGetResponse struct {
 	ListGetResponse
 
-	Results []*JobTemplateGetResponse `json:"result,omitempty"`
+	Results []*JobTemplate `json:"results,omitempty"`
 }
