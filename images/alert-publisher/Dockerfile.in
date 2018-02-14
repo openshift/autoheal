@@ -34,7 +34,7 @@ cd tmp && \
 install -o monitoring -g monitoring -m u+rwx,g+rx,o+rx -d /var/lib/monitoring && \
 rm -rf /tmp/*
 
-EXPOSE 9093
+EXPOSE 9099
 USER monitoring
 WORKDIR /var/lib/monitoring
 CMD ["/usr/bin/alert-publisher", "-alsologtostderr"]
