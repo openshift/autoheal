@@ -19,7 +19,7 @@ FROM centos:7
 # Create the monitoring user. The unusually high UID is needed because
 # recent versions of Kubernetes don't allow lower UID numbers.
 RUN \
-useradd -u 1000000000 -M monitoring
+useradd -l -u 1000000000 -M monitoring
 
 # Install the alert manager binary:
 COPY alertmanager.tar.gz /tmp
