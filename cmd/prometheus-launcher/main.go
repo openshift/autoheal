@@ -108,21 +108,21 @@ func main() {
 		}
 	}
 
-	// Create the client:
-	client, err := openshift.NewForConfig(config)
+	// Create the OpenShift API client:
+	osClient, err := openshift.NewForConfig(config)
 	if err != nil {
-		glog.Fatalf("Error building client: %s", err.Error())
+		glog.Fatalf("Error building OpenShift API client: %s", err.Error())
 	}
 
 	// Create an informer factory that will create informes that sync every 5 minutes:
-	informerFactory := informers.NewSharedInformerFactory(client, 5*time.Minute)
+	informerFactory := informers.NewSharedInformerFactory(osClient, 5*time.Minute)
 
 	// Build the launcher:
 	launcher, err := NewLauncherBuilder().
 		Binary(childBinary).
 		Config(childConfig).
 		Args(childArgs).
-		Client(client).
+		OpenShiftClient(osClient).
 		InformerFactory(informerFactory).
 		Build()
 	if err != nil {

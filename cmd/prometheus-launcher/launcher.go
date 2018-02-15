@@ -32,19 +32,19 @@ import (
 	"k8s.io/client-go/tools/cache"
 
 	monitoring "github.com/jhernand/openshift-monitoring/pkg/apis/monitoring/v1alpha1"
-	"github.com/jhernand/openshift-monitoring/pkg/client/informers"
-	listers "github.com/jhernand/openshift-monitoring/pkg/client/listers/monitoring/v1alpha1"
-	"github.com/jhernand/openshift-monitoring/pkg/client/openshift"
+	genericinf "github.com/jhernand/openshift-monitoring/pkg/client/informers"
+	typedinf "github.com/jhernand/openshift-monitoring/pkg/client/informers/monitoring/v1alpha1"
+	openshift "github.com/jhernand/openshift-monitoring/pkg/client/openshift"
 )
 
 // LauncherBuilder is used to create new launchers.
 //
 type LauncherBuilder struct {
 	// Client.
-	client openshift.Interface
+	osClient openshift.Interface
 
 	// Informer factory.
-	informerFactory informers.SharedInformerFactory
+	informerFactory genericinf.SharedInformerFactory
 
 	// The locations of the Prometheus binary and configuration files.
 	childBinary string
@@ -59,16 +59,13 @@ type LauncherBuilder struct {
 //
 type Launcher struct {
 	// Clients.
-	client openshift.Interface
+	osClient openshift.Interface
 
 	// Informer factory.
-	informerFactory informers.SharedInformerFactory
+	informerFactory genericinf.SharedInformerFactory
 
-	// Listers.
-	alertingRuleLister listers.AlertingRuleLister
-
-	// Sync checkers.
-	alertingRulesSynced cache.InformerSynced
+	// Informers.
+	alertingRuleInformer typedinf.AlertingRuleInformer
 
 	// This map stores for each alerting rule name the latest resource version that has been seen by
 	// the launcher. This is intended to avoid reloading the Prometheous configuration when repeated
@@ -95,16 +92,16 @@ func NewLauncherBuilder() *LauncherBuilder {
 	return b
 }
 
-// Client sets the OpenShift client that will be used by the launcher.
+// OpenShiftClient sets the OpenShift client that will be used by the launcher.
 //
-func (b *LauncherBuilder) Client(client openshift.Interface) *LauncherBuilder {
-	b.client = client
+func (b *LauncherBuilder) OpenShiftClient(client openshift.Interface) *LauncherBuilder {
+	b.osClient = client
 	return b
 }
 
 // InformerFactory sets the OpenShift informer factory that will be used by the launcher.
 //
-func (b *LauncherBuilder) InformerFactory(factory informers.SharedInformerFactory) *LauncherBuilder {
+func (b *LauncherBuilder) InformerFactory(factory genericinf.SharedInformerFactory) *LauncherBuilder {
 	b.informerFactory = factory
 	return b
 }
@@ -136,8 +133,11 @@ func (b *LauncherBuilder) Build() (l *Launcher, err error) {
 	// Allocate the launcher:
 	l = new(Launcher)
 
-	// Save the references to the Kubernetes and OpenShift clients:
-	l.client = b.client
+	// Save the references to the client:
+	l.osClient = b.osClient
+
+	// Save the reference to the informer factory:
+	l.informerFactory = b.informerFactory
 
 	// Save the details of the child:
 	l.childBinary = b.childBinary
@@ -147,14 +147,27 @@ func (b *LauncherBuilder) Build() (l *Launcher, err error) {
 	// Initialize the map where we store the latest resource version seen for each alerting rule:
 	l.alertingRuleVersions = make(map[string]string)
 
-	// Get references to the shared informers for the kinds of objects that affect the
-	// Prometheus configuration:
-	alertingRuleInformer := b.informerFactory.Monitoring().V1alpha1().AlertingRules()
-	l.alertingRuleLister = alertingRuleInformer.Lister()
-	l.alertingRulesSynced = alertingRuleInformer.Informer().HasSynced
+	return
+}
+
+// Run waits for the informers caches to sync, and then starts the child process. It then waits till
+// the stopCh is closed, at which point it asks the child process to finish.
+//
+func (l *Launcher) Run(stopCh <-chan struct{}) error {
+	defer runtime.HandleCrash()
+
+	// Create the informers:
+	l.alertingRuleInformer = l.informerFactory.Monitoring().V1alpha1().AlertingRules()
+
+	// Wait for the caches to be synced before starting the worker:
+	glog.Info("Waiting for informer caches to sync")
+	alertingRulesSynced := l.alertingRuleInformer.Informer().HasSynced
+	if ok := cache.WaitForCacheSync(stopCh, alertingRulesSynced); !ok {
+		return fmt.Errorf("Failed to wait for caches to sync")
+	}
 
 	// Set up an event handler for when alerting rules are created, modified or deleted:
-	alertingRuleInformer.Informer().AddEventHandler(
+	l.alertingRuleInformer.Informer().AddEventHandler(
 		cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
 				switch change := obj.(type) {
@@ -188,21 +201,6 @@ func (b *LauncherBuilder) Build() (l *Launcher, err error) {
 			},
 		},
 	)
-
-	return
-}
-
-// Run waits for the informers caches to sync, and then starts the child process. It then waits till
-// the stopCh is closed, at which point it asks the child process to finish.
-//
-func (l *Launcher) Run(stopCh <-chan struct{}) error {
-	defer runtime.HandleCrash()
-
-	// Wait for the caches to be synced before starting the worker:
-	glog.Info("Waiting for informer caches to sync")
-	if ok := cache.WaitForCacheSync(stopCh, l.alertingRulesSynced); !ok {
-		return fmt.Errorf("Failed to wait for caches to sync")
-	}
 
 	// Build the command line for the child process:
 	childArgs := l.childArgs
@@ -269,7 +267,7 @@ func (l *Launcher) handleAlertingRuleChange(change *monitoring.AlertingRule) {
 //
 func (l *Launcher) maybeReload() {
 	// Retrieve the complete list of alerting rules:
-	rules, err := l.alertingRuleLister.List(labels.Everything())
+	rules, err := l.alertingRuleInformer.Lister().List(labels.Everything())
 	if err != nil {
 		runtime.HandleError(fmt.Errorf("Error listing alerting rules: %s", err.Error()))
 	}
