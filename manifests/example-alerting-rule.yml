@@ -21,5 +21,6 @@ metadata:
 spec:
   alert: NodeDown
   expr: "up{job='nodes'} == 0"
+  for: 1m
   annotations:
     message: "Node '{{ $labels.instance }}' is down"

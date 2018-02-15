@@ -16,10 +16,6 @@ limitations under the License.
 
 package prometheus
 
-import (
-	"time"
-)
-
 // AlertingConfig represents the Prometheus alerting configuration.
 //
 type AlertingConfig struct {
@@ -38,7 +34,7 @@ type AlertingRuleGroup struct {
 type AlertingRule struct {
 	Alert       string            `yaml:"alert,omitempty"`
 	Expr        string            `yaml:"expr,omitempty"`
-	For         time.Duration     `yaml:"for,omitempty"`
+	For         string            `yaml:"for,omitempty"`
 	Labels      map[string]string `yaml:"labels,omitempty"`
 	Annotations map[string]string `yaml:"annotations,omitempty"`
 }

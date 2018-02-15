@@ -17,8 +17,6 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"time"
-
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -106,7 +104,7 @@ type AlertingRuleSpec struct {
 	// For indicates how long Prometheus will wait till the expression evaluates to true
 	// till the alert is actually fired.
 	// +optional
-	For time.Duration `json:"for,omitempty" protobuf:"bytes,4,opt,name=spec`
+	For string `json:"for,omitempty" protobuf:"bytes,4,opt,name=spec`
 
 	// Prometheus labels.
 	// +optional
