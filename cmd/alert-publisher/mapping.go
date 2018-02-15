@@ -17,6 +17,8 @@ limitations under the License.
 package main
 
 import (
+	"fmt"
+
 	alertmanager "github.com/jhernand/openshift-monitoring/pkg/alertmanager"
 	monitoring "github.com/jhernand/openshift-monitoring/pkg/apis/monitoring/v1alpha1"
 	mapping "github.com/jhernand/openshift-monitoring/pkg/mapping"
@@ -26,9 +28,19 @@ func mapAlert(input *alertmanager.Alert) (output *monitoring.Alert, err error) {
 	// Create and populate the alert object:
 	output = new(monitoring.Alert)
 
-	// Map the basic data:
-	output.ObjectMeta.Namespace = input.Annotations["namespace"]
-	output.ObjectMeta.Name = input.Labels["alertname"]
+	// The alert should be created in the same namespace than the original alerting rule, or
+	// else in the default namespace:
+	namespace := input.Annotations["namespace"]
+	if namespace == "" {
+		namespace = "default"
+	}
+	output.ObjectMeta.Namespace = namespace
+
+	// The name fo the alert should be derived from the name of the rule, with an added suffix
+	// to make it unique:
+	rule := input.Annotations["rule"]
+	name := fmt.Sprintf("%s-%d", rule, 0)
+	output.ObjectMeta.Name = name
 
 	// Copy the labels and annotations:
 	mapping.CopyMap(input.Labels, &output.Status.Labels)
