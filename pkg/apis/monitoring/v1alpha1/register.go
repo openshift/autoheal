@@ -59,6 +59,8 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 		&AlertList{},
 		&AlertingRule{},
 		&AlertingRuleList{},
+		&HealingRule{},
+		&HealingRuleList{},
 	)
 
 	// Add the watch version that applies
