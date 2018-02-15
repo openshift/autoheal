@@ -168,7 +168,6 @@ func (h *Healer) Run(stopCh <-chan struct{}) error {
 //
 func (h *Healer) handleAlertChange(alert *monitoring.Alert) {
 	// Load the healing rules:
-	glog.Info("Listing healing rules")
 	rules, err := h.healingRuleInformer.Lister().List(labels.Everything())
 	if err != nil {
 		glog.Info("Can't load healing rules: %s", err.Error())
@@ -262,6 +261,7 @@ func (h *Healer) runAWXJob(rule *monitoring.HealingRule, action *monitoring.AWXJ
 		glog.Errorf(
 			"Can't load AWX credentials from secret '%s': %s",
 			action.Secret,
+			err.Error(),
 		)
 	}
 
