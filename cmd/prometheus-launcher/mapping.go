@@ -138,9 +138,10 @@ func mapRule(input *monitoring.AlertingRule) (output *prometheus.AlertingRule, e
 	mapping.CopyMap(input.Spec.Labels, &output.Labels)
 	mapping.CopyMap(input.Spec.Annotations, &output.Annotations)
 
-	// Add an annotation with the Kubernetes namespace, so that it is propagated to the alert that
-	// will be eventually generated. Otherwise when the alert is translated into a Kubernetes object
-	// there is no way to reliably set the namespace.
+	// Add annotations with the rule name and namespace, so that they are propagated to th alert that
+	// will be eventuall generated. Otherwise when the alert is translated into a Kubernetes object
+	// there is no way to reliable set the namespace.
+	output.Annotations["rule"] = input.ObjectMeta.Name
 	output.Annotations["namespace"] = input.ObjectMeta.Namespace
 
 	return
