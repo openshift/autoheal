@@ -14,7 +14,7 @@
 # limitations under the License.
 #
 
-apiVersion: authorization.openshift.io/v1
+apiVersion: v1
 kind: ClusterRoleBinding
 metadata:
   name: healer
@@ -22,5 +22,7 @@ roleRef:
   name: healer
 subjects:
 - kind: ServiceAccount
-  namespace: default
   name: healer
+  namspace: default
+userNames:
+- system:serviceaccount:default:healer

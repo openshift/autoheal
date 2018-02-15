@@ -14,12 +14,15 @@
 # limitations under the License.
 #
 
-apiVersion: authorization.openshift.io/v1
-kind: RoleBinding
+apiVersion: v1
+kind: ClusterRoleBinding
 metadata:
-  name: healer
+  name: prometheus
 roleRef:
-  name: healer
+  name: prometheus
 subjects:
 - kind: ServiceAccount
-  name: healer
+  name: prometheus
+  namespace: default
+userNames:
+- system:serviceaccount:default:prometheus

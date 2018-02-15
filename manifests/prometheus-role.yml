@@ -14,8 +14,8 @@
 # limitations under the License.
 #
 
-apiVersion: authorization.openshift.io/v1
-kind: Role
+apiVersion: v1
+kind: ClusterRole
 metadata:
   name: prometheus
 rules:
@@ -35,6 +35,14 @@ rules:
   - monitoring.openshift.io
   resources:
   - alertingrules
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - nodes
   verbs:
   - get
   - list

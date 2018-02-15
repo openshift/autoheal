@@ -14,8 +14,8 @@
 # limitations under the License.
 #
 
-apiVersion: authorization.openshift.io/v1
-kind: Role
+apiVersion: v1
+kind: ClusterRole
 metadata:
   name: healer
 rules:
@@ -37,3 +37,12 @@ rules:
   - get
   - list
   - watch
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  resourceNames:
+  - awx
+  verbs:
+  - get
+  - list
