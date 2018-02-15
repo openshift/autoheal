@@ -43,6 +43,7 @@ rules:
   - ""
   resources:
   - nodes
+  - nodes/metrics
   verbs:
   - get
   - list
