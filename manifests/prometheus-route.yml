@@ -14,12 +14,14 @@
 # limitations under the License.
 #
 
-apiVersion: monitoring.openshift.io/v1alpha1
-kind: AlertingRule
+apiVersion: v1
+kind: Route
 metadata:
-  name: node-down
+  name: prometheus
 spec:
-  alert: NodeDown
-  expr: "up{job='nodes'} == 0"
-  annotations:
-    message: "Node '{{ $labels.instance }}' is down"
+  host: prometheus.jhernand.private
+  port:
+    targetPort: 9090
+  to:
+    kind: Service
+    name: prometheus
