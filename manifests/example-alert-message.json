@@ -5,9 +5,9 @@
     {
       "status": "firing",
       "labels": {
-        "alertname": "example-alerting-rule",
+        "alertname": "node-down",
         "instance": "openshift.local",
-        "job": "kubernetes-nodes"
+        "job": "nodes-nodes"
       },
       "annotations": {
         "message": "There are less than three nodes up",
@@ -15,16 +15,16 @@
       },
       "startsAt": "2018-02-07T21:18:36.917429089Z",
       "endsAt": "0001-01-01T00:00:00Z",
-      "generatorURL": "http://prometheus-4009290065-k2sh7:9090/graph?g0.expr=up%7Bjob%3D%22kubernetes-nodes%22%7D+%3C+3&g0.tab=1"
+      "generatorURL": "http://prometheus-4009290065-k2sh7:9090/graph?g0.expr=up%7Bjob%3D%22nodes%22%7D+%3C+3&g0.tab=1"
     }
   ],
   "groupLabels": {
-    "alertname": "example-alerting-rule"
+    "alertname": "node-down"
   },
   "commonLabels": {
-    "alertname": "example-alerting-rule",
+    "alertname": "node-down",
     "instance": "openshift.local",
-    "job": "kubernetes-nodes"
+    "job": "nodes"
   },
   "commonAnnotations": {
     "message": "There are less than three nodes up",
@@ -32,5 +32,5 @@
   },
   "externalURL": "http://prometheus-4009290065-k2sh7:9093",
   "version": "4",
-  "groupKey": "{}:{alertname=\"example-alerting-rule\"}"
+  "groupKey": "{}:{alertname=\"node-down\"}"
 }
