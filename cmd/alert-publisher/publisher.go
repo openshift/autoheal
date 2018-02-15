@@ -17,6 +17,7 @@ limitations under the License.
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
@@ -99,6 +100,9 @@ func (p *Publisher) handleRequest(response http.ResponseWriter, request *http.Re
 		return
 	}
 
+	// Dump the request to the log:
+	glog.Infof("Request body:\n%s", p.indent(body))
+
 	// Parse the JSON request body:
 	message := new(alertmanager.Message)
 	json.Unmarshal(body, message)
@@ -161,4 +165,13 @@ func (p *Publisher) publishAlert(alert *monitoring.Alert) {
 	} else {
 		glog.Infof("Alert '%s' has been created", alert.ObjectMeta.Name)
 	}
+}
+
+func (p *Publisher) indent(data []byte) []byte {
+	buffer := new(bytes.Buffer)
+	err := json.Indent(buffer, data, "", "  ")
+	if err != nil {
+		return data
+	}
+	return buffer.Bytes()
 }
