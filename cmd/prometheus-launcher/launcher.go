@@ -317,7 +317,7 @@ func (l *Launcher) maybeReload() {
 		if err != nil {
 			runtime.HandleError(fmt.Errorf("Error writing alerting rules file '%s': %s", rulesFile, err.Error()))
 		}
-		if l.child != nil {
+		if l.child != nil && l.child.Process != nil {
 			glog.Infof("Sending HUP signal to PID '%d'", l.child.Process.Pid)
 			err := l.child.Process.Signal(syscall.SIGHUP)
 			if err != nil {
