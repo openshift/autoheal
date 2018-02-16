@@ -17,6 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	batch "k8s.io/api/batch/v1"
 	core "k8s.io/api/core/v1"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -183,6 +184,10 @@ type HealingAction struct {
 	// AWXJob is used when the healing action is implemented by an Ansible AWX job.
 	// +optional
 	AWXJob *AWXJobAction `json:"awxJob,omitempty" protobuf:"bytes,1,opt,name=awxJob`
+
+	// BatchJob is used when the healing action is implemented by a Kubernetes batch job.
+	// +optional
+	BatchJob *batch.Job `json:"batchJob,omitempty" protobuf:"bytes,2,opt,name=batchJob`
 }
 
 // AWXJobAction describes how to run an Ansible AWX job.

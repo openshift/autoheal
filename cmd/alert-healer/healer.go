@@ -21,7 +21,9 @@ import (
 	"fmt"
 
 	"github.com/golang/glog"
+	batch "k8s.io/api/batch/v1"
 	core "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/runtime"
@@ -239,6 +241,8 @@ func (h *Healer) runActions(rule *monitoring.HealingRule, alert *monitoring.Aler
 func (h *Healer) runAction(rule *monitoring.HealingRule, action *monitoring.HealingAction, alert *monitoring.Alert) {
 	if action.AWXJob != nil {
 		h.runAWXJob(rule, action.AWXJob, alert)
+	} else if action.BatchJob != nil {
+		h.runBatchJob(rule, action.BatchJob, alert)
 	} else {
 		glog.Warningf(
 			"There are no action details, rule '%s' will have no effect on alert '%s'",
@@ -408,4 +412,56 @@ func (h *Healer) loadAWXSecret(rule *monitoring.HealingRule, reference *core.Sec
 	password = string(data)
 
 	return
+}
+
+func (h *Healer) runBatchJob(rule *monitoring.HealingRule, job *batch.Job, alert *monitoring.Alert) {
+	glog.Infof(
+		"Running batch job '%s' to heal alert '%s'",
+		job.ObjectMeta.Name,
+		alert.ObjectMeta.Name,
+	)
+
+	// The name of the job is mandatory:
+	name := job.ObjectMeta.Name
+	if name == "" {
+		glog.Errorf(
+			"Can't create job for rule '%s', the name hasn't been specified",
+			rule.ObjectMeta.Name,
+		)
+		return
+	}
+
+	// The namespace of the job is optional, the default is the namespace of the rule:
+	namespace := job.ObjectMeta.Namespace
+	if namespace == "" {
+		namespace = rule.ObjectMeta.Namespace
+	}
+
+	// Get the resource that manages the collection of batch jobs:
+	resource := h.k8sClient.Batch().Jobs(namespace)
+
+	// Try to create the job:
+	job = job.DeepCopy()
+	job.ObjectMeta.Name = name
+	job.ObjectMeta.Namespace = namespace
+	_, err := resource.Create(job)
+	if errors.IsAlreadyExists(err) {
+		glog.Warningf(
+			"Batch job '%s' already exists, will do nothing to heal alert '%s'",
+			job.ObjectMeta.Name,
+			alert.ObjectMeta.Name,
+		)
+	} else if err != nil {
+		glog.Errorf(
+			"Can't create batch job '%s' to heal alert '%s'",
+			job.ObjectMeta.Name,
+			alert.ObjectMeta.Name,
+		)
+	} else {
+		glog.Infof(
+			"Batch job '%s' to heal alert '%s' has been created",
+			job.ObjectMeta.Name,
+			alert.ObjectMeta.Name,
+		)
+	}
 }
