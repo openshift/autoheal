@@ -70,6 +70,8 @@ spec:
                           type: string
                         template:
                           type: string
+                        extraVars:
+                          type: object
                       required:
                       - address
                       - secretRef
@@ -78,6 +80,19 @@ spec:
                 - properties:
                     batchJob:
                       type: object
+                - properties:
+                    ansiblePlaybook:
+                      type: object
+                      properties:
+                        playbook:
+                          type: string
+                        inventory:
+                          type: string
+                        extraVars:
+                          type: object
+                      required:
+                      - playbook
+                      - inventory
           required:
           - conditions
           - actions

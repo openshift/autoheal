@@ -219,6 +219,10 @@ type HealingAction struct {
 	// BatchJob is used when the healing action is implemented by a Kubernetes batch job.
 	// +optional
 	BatchJob *batch.Job `json:"batchJob,omitempty" protobuf:"bytes,2,opt,name=batchJob`
+
+	// AnsiblePlaybook is used when the healing action is implemented by an Ansible playbook.
+	// +optional
+	AnsiblePlaybook *AnsiblePlaybookAction `json:"ansiblePlaybook,omitempty" protobuf:"bytes,3,opt,name=ansiblePlaybook`
 }
 
 // AWXJobAction describes how to run an Ansible AWX job.
@@ -232,7 +236,7 @@ type AWXJobAction struct {
 	// +optional
 	Proxy string `json:"proxy,omitempty" protobuf:"bytes,2,opt,name=proxy`
 
-	// Secret is reference (name, and optionally namespace) name of the secret that contains the
+	// SecretRef is the reference (name, and optionally namespace) of the secret that contains the
 	// user name and password used to access the AWX API.
 	// +optional
 	SecretRef *core.SecretReference `json:"secretRef,omitempty" protobuf:"bytes,3,opt,name=secretRef`
@@ -244,6 +248,31 @@ type AWXJobAction struct {
 	// Template is the name of the AWX job template that will be launched.
 	// +optional
 	Template string `json:"template,omitempty" protobuf:"bytes,5,opt,name=template`
+
+	// ExtraVars are the extra variables that will be passed to job.
+	// +optional
+	ExtraVars string `json:"extraVars,omitempty" protobuf:"bytes,5,opt,name=extraVars`
+}
+
+// AnsiblePlaybookAction describes ho to run an Ansible playbook.
+//
+type AnsiblePlaybookAction struct {
+	// Playbook is the complete text of the playbook.
+	// +optional
+	Playbook string `json:"playbook,omitempty" protobuf:"bytes,1,opt,name=playbook`
+
+	// Inventory is the complete text of the inventory.
+	// +optional
+	Inventory string `json:"inventory,omitempty" protobuf:"bytes,2,opt,name=inventory`
+
+	// SecretRef is the reference (name, and optionally namespace) of the secret that contains the
+	// SSH private key that Ansible will use to access the hosts.
+	// +optional
+	SecretRef *core.SecretReference `json:"secretRef,omitempty" protobuf:"bytes,3,opt,name=secretRef`
+
+	// ExtraVars are the extra variables that will be passed to Ansible.
+	// +optional
+	ExtraVars string `json:"extraVars,omitempty" protobuf:"bytes,4,opt,name=extraVars`
 }
 
 // HealingRuleStatus is the status for an alerting rule.

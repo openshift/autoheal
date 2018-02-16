@@ -47,6 +47,13 @@ rules:
   - get
   - list
 - apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - create
+  - get
+- apiGroups:
   - batch
   resources:
   - jobs

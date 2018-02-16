@@ -17,7 +17,6 @@ limitations under the License.
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"regexp"
 
@@ -284,6 +283,8 @@ func (h *Healer) runAction(rule *monitoring.HealingRule, action *monitoring.Heal
 		h.runAWXJob(rule, action.AWXJob, alert)
 	} else if action.BatchJob != nil {
 		h.runBatchJob(rule, action.BatchJob, alert)
+	} else if action.AnsiblePlaybook != nil {
+		h.runAnsiblePlaybook(rule, action.AnsiblePlaybook, alert)
 	} else {
 		glog.Warningf(
 			"There are no action details, rule '%s' will have no effect on alert '%s'",
@@ -359,28 +360,16 @@ func (h *Healer) runAWXJob(rule *monitoring.HealingRule, action *monitoring.AWXJ
 
 	// Launch the jobs:
 	for _, template := range templatesResponse.Results() {
-		h.launchAWXJob(connection, template, alert)
+		h.launchAWXJob(connection, template, action)
 	}
 }
 
-func (h *Healer) launchAWXJob(connection *awx.Connection, template *awx.JobTemplate, alert *monitoring.Alert) {
-	// Convert the alert to a JSON document in order to pass it as the content of the extra
-	// variables of the AWX job:
-	alertJSON, err := json.Marshal(alert)
-	if err != nil {
-		glog.Errorf(
-			"Can't convert alert '%s' to JSON: %s'",
-			alert.ObjectMeta.Name,
-			err.Error(),
-		)
-	}
-
-	// Send the request to launch the job:
+func (h *Healer) launchAWXJob(connection *awx.Connection, template *awx.JobTemplate, action *monitoring.AWXJobAction) {
 	templateId := template.Id()
 	templateName := template.Name()
 	launchResource := connection.JobTemplates().Id(templateId).Launch()
-	_, err = launchResource.Post().
-		ExtraVars(string(alertJSON)).
+	_, err := launchResource.Post().
+		ExtraVars(action.ExtraVars).
 		Send()
 	if err != nil {
 		glog.Errorf(
@@ -503,6 +492,135 @@ func (h *Healer) runBatchJob(rule *monitoring.HealingRule, job *batch.Job, alert
 			"Batch job '%s' to heal alert '%s' has been created",
 			job.ObjectMeta.Name,
 			alert.ObjectMeta.Name,
+		)
+	}
+}
+
+func (h *Healer) runAnsiblePlaybook(rule *monitoring.HealingRule, action *monitoring.AnsiblePlaybookAction, alert *monitoring.Alert) {
+	var err error
+
+	glog.Infof(
+		"Running Ansible playbook from healing rule '%s' and alert '%s'",
+		rule.ObjectMeta.Name,
+		alert.ObjectMeta.Name,
+	)
+
+	// The configuration map and the job will be in the same namespace and will have the same name
+	// than the alert:
+	namespace := alert.ObjectMeta.Namespace
+	name := alert.ObjectMeta.Name
+
+	// Populate the configuration map:
+	config := &core.ConfigMap{
+		ObjectMeta: meta.ObjectMeta{
+			Namespace: namespace,
+			Name:      name,
+		},
+		Data: map[string]string{
+			"playbook.yml": action.Playbook,
+			"inventory":    action.Inventory,
+		},
+	}
+
+	// Create the configuration map:
+	configsResource := h.k8sClient.Core().ConfigMaps(namespace)
+	_, err = configsResource.Create(config)
+	if errors.IsAlreadyExists(err) {
+		glog.Infof(
+			"Configuration map '%s' already exists",
+			config.ObjectMeta.Name,
+		)
+	} else if err != nil {
+		glog.Errorf(
+			"Can't create configuration map '%s': %s",
+			config.ObjectMeta.Name,
+			err.Error(),
+		)
+		return
+	} else {
+		glog.Infof(
+			"Created configuration map '%s'",
+			config.ObjectMeta.Name,
+		)
+	}
+
+	// Determine the user that will be used to run Ansible. This is needed because the UID must
+	// match the permissions set inside the image, otherwise Ansible will not be able to write to
+	// the home directory.
+	uid := int64(1000000000)
+
+	// Build the Ansible command line:
+	command := []string{
+		"/usr/bin/ansible-playbook",
+		"--inventory=/config/inventory",
+	}
+	if action.ExtraVars != "" {
+		command = append(command, "--extra-vars="+action.ExtraVars)
+	}
+	command = append(command, "/config/playbook.yml")
+
+	// Populate the job:
+	job := &batch.Job{
+		ObjectMeta: meta.ObjectMeta{
+			Namespace: namespace,
+			Name:      name,
+		},
+		Spec: batch.JobSpec{
+			Template: core.PodTemplateSpec{
+				Spec: core.PodSpec{
+					Volumes: []core.Volume{
+						core.Volume{
+							Name: "config",
+							VolumeSource: core.VolumeSource{
+								ConfigMap: &core.ConfigMapVolumeSource{
+									LocalObjectReference: core.LocalObjectReference{
+										Name: config.ObjectMeta.Name,
+									},
+								},
+							},
+						},
+					},
+					Containers: []core.Container{
+						core.Container{
+							Name:  "ansible-runner",
+							Image: "openshift-monitoring/ansible-runner:0.0.0",
+							SecurityContext: &core.SecurityContext{
+								RunAsUser: &uid,
+							},
+							Command: command,
+							VolumeMounts: []core.VolumeMount{
+								core.VolumeMount{
+									Name:      "config",
+									MountPath: "/config",
+								},
+							},
+						},
+					},
+					RestartPolicy: core.RestartPolicyNever,
+				},
+			},
+		},
+	}
+
+	// Create the job:
+	jobsResource := h.k8sClient.Batch().Jobs(namespace)
+	_, err = jobsResource.Create(job)
+	if errors.IsAlreadyExists(err) {
+		glog.Infof(
+			"Job '%s' already exists",
+			job.ObjectMeta.Name,
+		)
+	} else if err != nil {
+		glog.Errorf(
+			"Can't create job '%s': %s",
+			job.ObjectMeta.Name,
+			err.Error(),
+		)
+		return
+	} else {
+		glog.Infof(
+			"Created job '%s'",
+			job.ObjectMeta.Name,
 		)
 	}
 }
