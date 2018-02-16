@@ -17,6 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	core "k8s.io/api/core/v1"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -195,18 +196,18 @@ type AWXJobAction struct {
 	// +optional
 	Proxy string `json:"proxy,omitempty" protobuf:"bytes,2,opt,name=proxy`
 
-	// Secret is the name of the secret that contains the user name and password used to access the
-	// AWX API.
+	// Secret is reference (name, and optionally namespace) name of the secret that contains the
+	// user name and password used to access the AWX API.
 	// +optional
-	Secret string `json:"secret,omitempty" protobuf:"bytes,2,opt,name=secret`
+	SecretRef *core.SecretReference `json:"secretRef,omitempty" protobuf:"bytes,3,opt,name=secretRef`
 
 	// Project is the name of the AWX project that contains the job template.
 	// +optional
-	Project string `json:"project,omitempty" protobuf:"bytes,3,opt,name=project`
+	Project string `json:"project,omitempty" protobuf:"bytes,4,opt,name=project`
 
 	// Template is the name of the AWX job template that will be launched.
 	// +optional
-	Template string `json:"template,omitempty" protobuf:"bytes,4,opt,name=template`
+	Template string `json:"template,omitempty" protobuf:"bytes,5,opt,name=template`
 }
 
 // HealingRuleStatus is the status for an alerting rule.

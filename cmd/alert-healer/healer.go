@@ -21,11 +21,12 @@ import (
 	"fmt"
 
 	"github.com/golang/glog"
+	core "k8s.io/api/core/v1"
+	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
-	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	monitoring "github.com/jhernand/openshift-monitoring/pkg/apis/monitoring/v1alpha1"
 	awx "github.com/jhernand/openshift-monitoring/pkg/awx"
@@ -256,13 +257,21 @@ func (h *Healer) runAWXJob(rule *monitoring.HealingRule, action *monitoring.AWXJ
 	)
 
 	// Load the AWX credentials:
-	username, password, err := h.loadAWXSecret(rule.ObjectMeta.Namespace, action.Secret)
+	secret := action.SecretRef
+	if secret == nil {
+		glog.Errorf(
+			"The secret containing the AWX credentials hasn't been specified",
+		)
+		return
+	}
+	username, password, err := h.loadAWXSecret(rule, secret)
 	if err != nil {
 		glog.Errorf(
 			"Can't load AWX credentials from secret '%s': %s",
-			action.Secret,
+			secret.Name,
 			err.Error(),
 		)
+		return
 	}
 
 	// Create the connection to the AWX server:
@@ -341,9 +350,25 @@ func (h *Healer) launchAWXJob(connection *awx.Connection, template *awx.JobTempl
 	)
 }
 
-func (h* Healer) loadAWXSecret(namespace, name string) (username, password string, err error) {
+func (h *Healer) loadAWXSecret(rule *monitoring.HealingRule, reference *core.SecretReference) (username, password string, err error) {
 	var data []byte
 	var ok bool
+
+	// The name of the secret is mandatory:
+	name := reference.Name
+	if name == "" {
+		err = fmt.Errorf(
+			"Can't load AWX secret for rule '%s', the name hasn't been specified",
+			rule.ObjectMeta.Name,
+		)
+		return
+	}
+
+	// The namespace of the secret is optional, the default is the namespace of the rule:
+	namespace := reference.Namespace
+	if namespace == "" {
+		namespace = rule.ObjectMeta.Namespace
+	}
 
 	// Retrieve the secret:
 	resource := h.k8sClient.CoreV1().Secrets(namespace)

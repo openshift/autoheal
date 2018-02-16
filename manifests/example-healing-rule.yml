@@ -8,6 +8,7 @@ spec:
   actions:
   - awxJob:
       address: https://tower.private/api
-      secret: awx
+      secretRef:
+        name: awx
       project: "Healing actions"
       template: "Ensure nodes"

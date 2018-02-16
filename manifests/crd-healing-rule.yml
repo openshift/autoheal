@@ -59,15 +59,20 @@ spec:
                           type: string
                         proxy:
                           type: string
-                        secret:
-                          type: string
+                        secretRef:
+                          type: object
+                          properties:
+                            name:
+                              type: string
+                            namespace:
+                              type: string
                         project:
                           type: string
                         template:
                           type: string
                       required:
                       - address
-                      - secret
+                      - secretRef
                       - project
                       - template
           required:
