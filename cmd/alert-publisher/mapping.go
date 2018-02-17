@@ -17,10 +17,11 @@ limitations under the License.
 package main
 
 import (
-	"fmt"
+	"strings"
 
 	alertmanager "github.com/jhernand/openshift-monitoring/pkg/alertmanager"
 	monitoring "github.com/jhernand/openshift-monitoring/pkg/apis/monitoring/v1alpha1"
+	labels "github.com/jhernand/openshift-monitoring/pkg/labels"
 	mapping "github.com/jhernand/openshift-monitoring/pkg/mapping"
 )
 
@@ -36,15 +37,27 @@ func mapAlert(input *alertmanager.Alert) (output *monitoring.Alert, err error) {
 	}
 	output.ObjectMeta.Namespace = namespace
 
-	// The name fo the alert should be derived from the name of the rule, with an added suffix
-	// to make it unique:
-	rule := input.Annotations["rule"]
-	name := fmt.Sprintf("%s-%d", rule, 0)
-	output.ObjectMeta.Name = name
+	// Initially the name of the alert is the name of the rule. It will be probably changed later
+	// when trying to save it, to make it unique.
+	name := input.Annotations["rule"]
+	if name == "" {
+		name = input.Labels["alertname"]
+	}
+	if name == "" {
+		name = "unknown"
+	}
+	output.ObjectMeta.Name = strings.ToLower(name)
 
 	// Copy the labels and annotations:
 	mapping.CopyMap(input.Labels, &output.Status.Labels)
 	mapping.CopyMap(input.Annotations, &output.Status.Annotations)
+
+	// Calculate the hash and add it as a label:
+	hash := hashAlert(output)
+	if output.ObjectMeta.Labels == nil {
+		output.ObjectMeta.Labels = make(map[string]string)
+	}
+	output.ObjectMeta.Labels[labels.Hash] = hash
 
 	return
 }

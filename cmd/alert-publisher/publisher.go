@@ -19,13 +19,16 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
+	"reflect"
 
 	"github.com/golang/glog"
 	alertmanager "github.com/jhernand/openshift-monitoring/pkg/alertmanager"
 	monitoring "github.com/jhernand/openshift-monitoring/pkg/apis/monitoring/v1alpha1"
 	"github.com/jhernand/openshift-monitoring/pkg/client/openshift"
+	"github.com/jhernand/openshift-monitoring/pkg/labels"
 	"k8s.io/apimachinery/pkg/api/errors"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/runtime"
@@ -139,32 +142,84 @@ func (p *Publisher) handleAlert(alert *alertmanager.Alert) {
 }
 
 func (p *Publisher) publishAlert(alert *monitoring.Alert) {
-	// Get the resource that manages the collection of alerts for the namespace:
-	namespace := alert.ObjectMeta.Namespace
-	if namespace == "" {
-		namespace = "default"
-	}
-	resource := p.client.Monitoring().Alerts(namespace)
+	// Add the hash to the name:
+	hash := alert.ObjectMeta.Labels[labels.Hash]
+	name := fmt.Sprintf("%s-%s", alert.ObjectMeta.Name, hash)
 
-	// Try to create or update the alert:
-	_, err := resource.Create(alert)
-	if errors.IsAlreadyExists(err) {
-		loaded, err := resource.Get(alert.ObjectMeta.Name, meta.GetOptions{})
-		if err != nil {
-			glog.Errorf("Can't retrieve alert '%s': %s", alert.ObjectMeta.Name, err.Error())
-		}
-		alert.ObjectMeta.ResourceVersion = loaded.ObjectMeta.ResourceVersion
-		_, err = resource.Update(alert)
-		if err != nil {
-			glog.Errorf("Can't update alert '%s': $s", alert.ObjectMeta.Name, err.Error())
+	// Repeatedly try to save the alert till we find a suffix that makes the name unique:
+	suffix := 0
+	for {
+		alert.ObjectMeta.Name = fmt.Sprintf("%s-%d", name, suffix)
+		err := p.tryPublishAlert(alert)
+		if err == nil {
+			break
+		} else if errors.IsAlreadyExists(err) {
+			suffix++
+			continue
 		} else {
-			glog.Infof("Alert '%s' has been updated", alert.ObjectMeta.Name)
+			glog.Infof(
+				"Can't publish alert '%s': %s",
+				name,
+				err.Error(),
+			)
+			return
 		}
-	} else if err != nil {
-		glog.Errorf("Can't create alert '%s': %s", alert.ObjectMeta.Name, err.Error())
-	} else {
-		glog.Infof("Alert '%s' has been created", alert.ObjectMeta.Name)
 	}
+}
+
+func (p *Publisher) tryPublishAlert(alert *monitoring.Alert) error {
+	// Try to find an existing alert that matches the new one:
+	match, err := p.findMatch(alert)
+	if err != nil {
+		return err
+	}
+	if match != nil {
+		glog.Infof(
+			"Alert has already been published as '%s'",
+			match.ObjectMeta.Name,
+		)
+		return nil
+	}
+
+	// Save the new alert:
+	resource := p.client.Monitoring().Alerts(alert.ObjectMeta.Namespace)
+	_, err = resource.Create(alert)
+	if err != nil {
+		return err
+	} else {
+		glog.Infof(
+			"Alert '%s' has been published",
+			alert.ObjectMeta.Name,
+		)
+		return nil
+	}
+
+	return nil
+}
+
+func (p *Publisher) findMatch(alert *monitoring.Alert) (match *monitoring.Alert, err error) {
+	// Load all the alerts that have the same hash than the one that we are looking for:
+	resource := p.client.Monitoring().Alerts(alert.ObjectMeta.Namespace)
+	hash := alert.ObjectMeta.Labels[labels.Hash]
+	options := meta.ListOptions{
+		LabelSelector: fmt.Sprintf("%s=%s", labels.Hash, hash),
+	}
+	list, err := resource.List(options)
+	if err != nil {
+		return
+	}
+
+	// Check if any of the existing alerts has the same identitity than the new one. If there is
+	// such alert then return it:
+	for _, item := range list.Items {
+		same := reflect.DeepEqual(item.Status.Labels, alert.Status.Labels)
+		if same {
+			match = &item
+			return
+		}
+	}
+
+	return
 }
 
 func (p *Publisher) indent(data []byte) []byte {
