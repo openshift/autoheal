@@ -19,6 +19,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"regexp"
 
 	"github.com/golang/glog"
 	batch "k8s.io/api/batch/v1"
@@ -216,7 +217,17 @@ func (h *Healer) checkConditions(rule *monitoring.HealingRule, alert *monitoring
 }
 
 func (h *Healer) checkCondition(condition *monitoring.HealingCondition, alert *monitoring.Alert) bool {
-	return condition.Alert == alert.ObjectMeta.Name
+	matched, err := regexp.MatchString(condition.Alert, alert.ObjectMeta.Name)
+	if err != nil {
+		glog.Errorf(
+			"Error while checking if alert name '%s' matches pattern '%s': %s",
+			alert.ObjectMeta.Name,
+			condition.Alert,
+			err.Error(),
+		)
+		matched = false
+	}
+	return matched
 }
 
 func (h *Healer) runActions(rule *monitoring.HealingRule, alert *monitoring.Alert) {

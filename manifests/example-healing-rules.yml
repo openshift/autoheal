@@ -14,6 +14,8 @@
 # limitations under the License.
 #
 
+---
+
 # This rule starts an AWX (a.k.a. Ansible Tower) job.
 
 apiVersion: monitoring.openshift.io/v1alpha1
@@ -22,7 +24,7 @@ metadata:
   name: node-down
 spec:
   conditions:
-  - alert: node-down-0
+  - alert: "node-down-.*"
   actions:
   - awxJob:
       address: https://tower.private/api
@@ -30,6 +32,8 @@ spec:
         name: awx
       project: "Healing actions"
       template: "Ensure nodes"
+
+---
 
 # This rule starts a batch job that uses Python to say hello.
 
@@ -39,7 +43,7 @@ metadata:
   name: welcome
 spec:
   conditions:
-  - alert: hello-0
+  - alert: "hello-.*"
   actions:
   - batchJob:
       apiVersion: batch/v1
