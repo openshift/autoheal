@@ -156,7 +156,6 @@ func (h *Healer) Run(stopCh <-chan struct{}) error {
 						"Alert '%s' has been deleted",
 						change.ObjectMeta.Name,
 					)
-					h.handleAlertChange(change)
 				}
 			},
 		},
@@ -171,10 +170,30 @@ func (h *Healer) Run(stopCh <-chan struct{}) error {
 // handleAlertChange checks if the given alert change requires starting a healing process.
 //
 func (h *Healer) handleAlertChange(alert *monitoring.Alert) {
+	// Do the rest of the process with a copy of the alert, to avoid the risk of modifying the
+	// version of the alert stored in the cache of the informer:
+	alert = alert.DeepCopy()
+
+	// Check if the alert has alredy been resolved, or if is already being healed, as in both cases
+	// we don't need to do anything:
+	resolved := alert.HasCondition(monitoring.AlertResolved)
+	healing := alert.HasCondition(monitoring.AlertHealing)
+	if resolved || healing {
+		glog.Infof(
+			"Alert '%s' is already resolved or being healed",
+			alert.ObjectMeta.Name,
+		)
+		return
+	}
+
 	// Load the healing rules:
 	rules, err := h.healingRuleInformer.Lister().List(labels.Everything())
 	if err != nil {
-		glog.Info("Can't load healing rules: %s", err.Error())
+		glog.Errorf(
+			"Can't load healing rules: %s",
+			err.Error(),
+		)
+		return
 	}
 
 	// Find the rules that are activated for the alert:
@@ -194,7 +213,18 @@ func (h *Healer) handleAlertChange(alert *monitoring.Alert) {
 		return
 	}
 
-	// Execute the actions of the activated rules:
+	// Mark he alert as being healed, and then execute the actions of the activated rules:
+	alert.AddCondition(monitoring.AlertHealing)
+	resource := h.osClient.Monitoring().Alerts(alert.ObjectMeta.Namespace)
+	_, err = resource.Update(alert)
+	if err != nil {
+		glog.Errorf(
+			"Can't update condition of alert '%s': %s",
+			alert.ObjectMeta.Name,
+			err.Error(),
+		)
+		return
+	}
 	for _, rule := range activated {
 		h.runActions(rule, alert)
 	}

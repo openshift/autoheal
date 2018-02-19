@@ -152,6 +152,9 @@ func (p *Publisher) handleAlert(alert *alertmanager.Alert) {
 }
 
 func (p *Publisher) publishAlert(alert *monitoring.Alert) {
+	// Add the firing condition:
+	alert.AddCondition(monitoring.AlertFiring)
+
 	// Add the hash to the name:
 	hash := alert.ObjectMeta.Labels[labels.Hash]
 	name := fmt.Sprintf("%s-%s", alert.ObjectMeta.Name, hash)
@@ -178,21 +181,33 @@ func (p *Publisher) publishAlert(alert *monitoring.Alert) {
 }
 
 func (p *Publisher) tryPublishAlert(alert *monitoring.Alert) error {
-	// Try to find an existing alert that matches the new one:
+	// Get the resource that manages the set of alerts:
+	resource := p.client.Monitoring().Alerts(alert.ObjectMeta.Namespace)
+
+	// Try to find an existing alert that matches the new one, and move it to firing:
 	match, err := p.findMatch(alert)
 	if err != nil {
 		return err
 	}
 	if match != nil {
+		firing := match.HasCondition(monitoring.AlertFiring)
+		resolved := match.HasCondition(monitoring.AlertResolved)
+		if !firing || resolved {
+			match.DeleteCondition(monitoring.AlertResolved)
+			match.AddCondition(monitoring.AlertFiring)
+			_, err := resource.Update(match)
+			if err != nil {
+				return err
+			}
+		}
 		glog.Infof(
-			"Alert has already been published as '%s'",
+			"Alert was already published as '%s'",
 			match.ObjectMeta.Name,
 		)
 		return nil
 	}
 
 	// Save the new alert:
-	resource := p.client.Monitoring().Alerts(alert.ObjectMeta.Namespace)
 	_, err = resource.Create(alert)
 	if err != nil {
 		return err
@@ -208,11 +223,14 @@ func (p *Publisher) tryPublishAlert(alert *monitoring.Alert) error {
 }
 
 func (p *Publisher) resolveAlert(alert *monitoring.Alert) {
+	// Get the resource that manages the set of alerts:
+	resource := p.client.Monitoring().Alerts(alert.ObjectMeta.Namespace)
+
 	// Try to find an existing alert that matches the resolved one:
 	match, err := p.findMatch(alert)
 	if err != nil {
 		glog.Errorf(
-			"Can't alerts matching '%s': %s",
+			"Can't find alerts matching '%s': %s",
 			alert.ObjectMeta.Name,
 			err.Error(),
 		)
@@ -220,29 +238,37 @@ func (p *Publisher) resolveAlert(alert *monitoring.Alert) {
 	}
 	if match == nil {
 		glog.Infof(
-			"Alert '%s' has already been resolved",
+			"Alert '%s' doesn't exist",
 			alert.ObjectMeta.Name,
 		)
 		return
 	}
 
-	// Try to delete the matching alert:
-	resource := p.client.Monitoring().Alerts(alert.ObjectMeta.Namespace)
-	err = resource.Delete(match.ObjectMeta.Name, nil)
-	if err != nil {
-		glog.Errorf(
-			"Can't delete alert '%s': %s",
+	// Try to move the alert to resolved:
+	firing := match.HasCondition(monitoring.AlertFiring)
+	resolved := match.HasCondition(monitoring.AlertResolved)
+	if firing || !resolved {
+		match.DeleteCondition(monitoring.AlertFiring)
+		match.AddCondition(monitoring.AlertResolved)
+		_, err := resource.Update(match)
+		if err != nil {
+			glog.Infof(
+				"Can't update conditions of alert '%s': %s",
+				match.ObjectMeta.Name,
+				err.Error(),
+			)
+			return
+		}
+		glog.Infof(
+			"Alert '%s' has been resolved",
 			match.ObjectMeta.Name,
-			err.Error(),
 		)
-		return
+	} else {
+		glog.Infof(
+			"Alert '%s' was already resolved",
+			match.ObjectMeta.Name,
+		)
 	}
-
-	// Done:
-	glog.Infof(
-		"Alert '%s' has been resolved",
-		match.ObjectMeta.Name,
-	)
 }
 
 func (p *Publisher) findMatch(alert *monitoring.Alert) (match *monitoring.Alert, err error) {

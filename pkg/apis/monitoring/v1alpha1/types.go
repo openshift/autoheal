@@ -49,6 +49,37 @@ type AlertStatus struct {
 	// Prometheus annotations.
 	// +optional
 	Annotations map[string]string `json:"annotations,omitempty" protobuf:"bytes,2,rep,name=annotations"`
+
+	// Current state of the alert.
+	// +optional
+	Conditions []AlertCondition `json:"conditions,omitempty" protobuf:"bytes,3,rep,name=conditions"`
+}
+
+// AlertConditionType are the valid types of alert conditions.
+//
+type AlertConditionType string
+
+// Valid types of alert conditions.
+//
+const (
+	// The alert is firing.
+	AlertFiring AlertConditionType = "Firing"
+
+	// The alert is resolved.
+	AlertResolved AlertConditionType = "Resolved"
+
+	// The alert is being healed.
+	AlertHealing AlertConditionType = "Healing"
+)
+
+// AlertCondition contains details for the current condition of the alert.
+//
+type AlertCondition struct {
+	// The type of condition.
+	Type AlertConditionType `json:"type,omitempty" protobuf:"bytes,1,opt,name=type"`
+
+	// Human readable message containing details of the condition.
+	Message string `json:"message,omitempty" protobuf:"bytes,2,opt,name=message"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
