@@ -17,6 +17,9 @@
 # This is file configures the alert manager to send the alerts to the component
 # that will publish them as instances of the Kubernetes alert type.
 
+global:
+  resolve_timeout: 1m
+
 route:
   receiver: publisher
 
@@ -24,7 +27,7 @@ route:
   # enviroment.
   group_wait: 0s
   group_interval: 0s
-  repeat_interval: 1m
+  repeat_interval: 30s
 
 receivers:
 - name: publisher
