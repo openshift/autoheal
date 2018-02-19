@@ -20,11 +20,20 @@ import (
 	"time"
 )
 
+// AlertStatus represents the status of a alert.
+//
+type AlertStatus string
+
+const (
+	AlertStatusFiring   AlertStatus = "firing"
+	AlertStatusResolved AlertStatus = "resolved"
+)
+
 // Data represents each message sent by the alert manager to a receiver.
 //
 type Message struct {
 	Receiver          string            `json:"receiver,omitempty"`
-	Status            string            `json:"status,omitempty"`
+	Status            AlertStatus       `json:"status,omitempty"`
 	Alerts            []*Alert          `json:"alerts,omitempty"`
 	GroupLabels       map[string]string `json:"groupLabels,omitempty"`
 	CommonLabels      map[string]string `json:"commonLabels,omitempty"`
@@ -35,7 +44,7 @@ type Message struct {
 // Alert represents each of the alerts sent by the alert manager to a receiver.
 //
 type Alert struct {
-	Status       string            `json:"status,omitempty"`
+	Status       AlertStatus       `json:"status,omitempty"`
 	Labels       map[string]string `json:"labels,omitempty"`
 	Annotations  map[string]string `json:"annotations,omitempty"`
 	StartsAt     time.Time         `json:"startsAt,omitempty"`

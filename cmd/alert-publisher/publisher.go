@@ -137,8 +137,18 @@ func (p *Publisher) handleAlert(alert *alertmanager.Alert) {
 		return
 	}
 
-	// Publish the alert:
-	p.publishAlert(object)
+	// Publish or retire the alert, according to the status provided by the alert manager:
+	switch alert.Status {
+	case alertmanager.AlertStatusFiring:
+		p.publishAlert(object)
+	case alertmanager.AlertStatusResolved:
+		p.resolveAlert(object)
+	default:
+		glog.Warningf(
+			"Unknnown status '%s' reported by alert manager, will ignore it",
+			alert.Status,
+		)
+	}
 }
 
 func (p *Publisher) publishAlert(alert *monitoring.Alert) {
@@ -195,6 +205,44 @@ func (p *Publisher) tryPublishAlert(alert *monitoring.Alert) error {
 	}
 
 	return nil
+}
+
+func (p *Publisher) resolveAlert(alert *monitoring.Alert) {
+	// Try to find an existing alert that matches the resolved one:
+	match, err := p.findMatch(alert)
+	if err != nil {
+		glog.Errorf(
+			"Can't alerts matching '%s': %s",
+			alert.ObjectMeta.Name,
+			err.Error(),
+		)
+		return
+	}
+	if match == nil {
+		glog.Infof(
+			"Alert '%s' has already been resolved",
+			alert.ObjectMeta.Name,
+		)
+		return
+	}
+
+	// Try to delete the matching alert:
+	resource := p.client.Monitoring().Alerts(alert.ObjectMeta.Namespace)
+	err = resource.Delete(match.ObjectMeta.Name, nil)
+	if err != nil {
+		glog.Errorf(
+			"Can't delete alert '%s': %s",
+			match.ObjectMeta.Name,
+			err.Error(),
+		)
+		return
+	}
+
+	// Done:
+	glog.Infof(
+		"Alert '%s' has been resolved",
+		match.ObjectMeta.Name,
+	)
 }
 
 func (p *Publisher) findMatch(alert *monitoring.Alert) (match *monitoring.Alert, err error) {
