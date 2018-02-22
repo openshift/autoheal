@@ -95,14 +95,14 @@ func (h *Healer) startHealing(alert *alertmanager.Alert) error {
 			glog.Infof(
 				"Healing rule '%s' matches alert '%s'",
 				rule.ObjectMeta.Name,
-				alert.Labels["alertname"],
+				alert.Name(),
 			)
 			activated = append(activated, rule)
 		}
 		return true
 	})
 	if len(activated) == 0 {
-		glog.Infof("No healing rule matches alert '%s'", alert.Labels["alertname"])
+		glog.Infof("No healing rule matches alert '%s'", alert.Name())
 		return nil
 	}
 
@@ -127,7 +127,7 @@ func (h *Healer) checkConditions(rule *monitoring.HealingRule, alert *alertmanag
 	glog.Infof(
 		"Checking conditions of rule '%s' for alert '%s'",
 		rule.ObjectMeta.Name,
-		alert.Labels["alertname"],
+		alert.Name(),
 	)
 	if rule.Spec.Conditions != nil && len(rule.Spec.Conditions) > 0 {
 		for i := 0; i < len(rule.Spec.Conditions); i++ {
@@ -140,11 +140,11 @@ func (h *Healer) checkConditions(rule *monitoring.HealingRule, alert *alertmanag
 }
 
 func (h *Healer) checkCondition(condition *monitoring.HealingCondition, alert *alertmanager.Alert) bool {
-	matched, err := regexp.MatchString(condition.Alert, alert.Labels["alertname"])
+	matched, err := regexp.MatchString(condition.Alert, alert.Name())
 	if err != nil {
 		glog.Errorf(
 			"Error while checking if alert name '%s' matches pattern '%s': %s",
-			alert.Labels["alertname"],
+			alert.Name(),
 			condition.Alert,
 			err.Error(),
 		)
@@ -158,7 +158,7 @@ func (h *Healer) runActions(rule *monitoring.HealingRule, alert *alertmanager.Al
 		glog.Infof(
 			"Running actions of healing rule '%s' for alert '%s'",
 			rule.ObjectMeta.Name,
-			alert.Labels["alertname"],
+			alert.Name(),
 		)
 		for i := 0; i < len(rule.Spec.Actions); i++ {
 			err := h.runAction(rule, &rule.Spec.Actions[i], alert)
@@ -170,7 +170,7 @@ func (h *Healer) runActions(rule *monitoring.HealingRule, alert *alertmanager.Al
 		glog.Warningf(
 			"Healing rule '%s' has no actions, will have no effect on alert '%s'",
 			rule.ObjectMeta.Name,
-			alert.Labels["alertname"],
+			alert.Name(),
 		)
 	}
 
@@ -234,7 +234,7 @@ func (h *Healer) runAction(rule *monitoring.HealingRule, action *monitoring.Heal
 		glog.Warningf(
 			"There are no action details, rule '%s' will have no effect on alert '%s'",
 			rule.ObjectMeta.Name,
-			alert.Labels["alertname"],
+			alert.Name(),
 		)
 	}
 

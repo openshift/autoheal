@@ -31,13 +31,13 @@ func (h *Healer) runAnsiblePlaybook(rule *monitoring.HealingRule, action *monito
 	glog.Infof(
 		"Running Ansible playbook from healing rule '%s' and alert '%s'",
 		rule.ObjectMeta.Name,
-		alert.Labels["alertname"],
+		alert.Name(),
 	)
 
 	// The configuration map and the job will be in the same namespace and will have the same name
 	// than the alert:
 	namespace := alert.Labels["namespace"]
-	name := alert.Labels["alertname"]
+	name := alert.Name()
 
 	// Populate the configuration map:
 	config := &core.ConfigMap{

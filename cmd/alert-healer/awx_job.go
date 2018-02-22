@@ -33,7 +33,7 @@ func (h *Healer) runAWXJob(rule *monitoring.HealingRule, action *monitoring.AWXJ
 		"Running AWX job from project '%s' and template '%s' to heal alert '%s'",
 		action.Project,
 		action.Template,
-		alert.Labels["alertname"],
+		alert.Name(),
 	)
 
 	// Load the AWX credentials:

@@ -51,3 +51,9 @@ type Alert struct {
 	EndsAt       time.Time         `json:"endsAt,omitempty"`
 	GeneratorURL time.Time         `json:"generatorURL,omitempty"`
 }
+
+// Name returns the name of the alert.
+//
+func (a *Alert) Name() string {
+	return a.Labels["alertname"]
+}
