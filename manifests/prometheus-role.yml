@@ -22,18 +22,6 @@ rules:
 - apiGroups:
   - monitoring.openshift.io
   resources:
-  - alerts
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - monitoring.openshift.io
-  resources:
   - alertingrules
   verbs:
   - get

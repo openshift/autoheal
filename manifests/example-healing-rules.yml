@@ -21,17 +21,21 @@
 apiVersion: monitoring.openshift.io/v1alpha1
 kind: HealingRule
 metadata:
-  name: node-down
+  name: run-awx-job
 spec:
   conditions:
-  - alert: "node-down-.*"
+  - alert: "NodeDown"
   actions:
   - awxJob:
       address: https://tower.private/api
       secretRef:
         name: awx
       project: "Healing actions"
-      template: "Ensure nodes"
+      template: "Ensure oVirt host"
+      extraVars: |-
+        {
+          "ovirt_host": "{{ $labels.instance }}"
+        }
 
 ---
 
@@ -40,10 +44,10 @@ spec:
 apiVersion: monitoring.openshift.io/v1alpha1
 kind: HealingRule
 metadata:
-  name: welcome
+  name: run-batch-job
 spec:
   conditions:
-  - alert: "hello-.*"
+  - alert: "RunBatchJob"
   actions:
   - batchJob:
       apiVersion: batch/v1
@@ -69,10 +73,10 @@ spec:
 apiVersion: monitoring.openshift.io/v1alpha1
 kind: HealingRule
 metadata:
-  name: playbook
+  name: run-playbook
 spec:
   conditions:
-  - alert: "playbook-.*"
+  - alert: "RunPlaybook"
   actions:
   - ansiblePlaybook:
       playbook: |-

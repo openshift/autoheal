@@ -103,7 +103,7 @@ func main() {
 		glog.Fatalf("Error building OpenShift API client: %s", err.Error())
 	}
 
-	// Create an informer factory that will create informes that sync every 5 minutes:
+	// Create an informer factory that will create informers that sync every 5 minutes:
 	informerFactory := informers.NewSharedInformerFactory(osClient, 5*time.Minute)
 
 	// Build the healer:

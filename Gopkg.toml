@@ -14,6 +14,10 @@
   name = "k8s.io/client-go"
   version = "kubernetes-1.9.2"
 
+[[constraint]]
+  name = "golang.org/x/sync"
+  branch = "master"
+
 # This isn't a dependency of the code, but of the build process, as we need the
 # code generator to generate the client code for our custom resource
 # definitions.

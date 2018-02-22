@@ -52,11 +52,3 @@ spec:
         - containerPort: 9093
         securityContext:
           runAsUser: 1000000000 # Must match the UID in the image.
-
-      # Alert publisher:
-      - name: publisher
-        image: openshift-monitoring/alert-publisher:0.0.0
-        ports:
-        - containerPort: 9099
-        securityContext:
-          runAsUser: 1000000000 # Must match the UID in the image.

@@ -14,21 +14,14 @@
 # limitations under the License.
 #
 
-# This is file configures the alert manager to send the alert notifications to
-# the healer.
-
-global:
-  resolve_timeout: 1m
-
-route:
-  receiver: healer
-
-  # These are configured very low to make experience better in the development
-  # enviroment.
-  group_wait: 0s
-  group_interval: 0s
-
-receivers:
-- name: healer
-  webhook_configs:
-  - url: http://healer.default.svc.cluster.local:9099
+kind: Service
+metadata:
+  name: healer
+spec:
+  selector:                  
+    app: healer
+  ports:
+  - name: healer
+    protocol: TCP
+    port: 9099
+    targetPort: 9099

@@ -1,13 +1,14 @@
 *.log
+*.retry
 *.swp
 *.tar
 *.tar.gz
 .hash
 /.downloads
 /.gopath
+/.idea
 /CHANGES.html
 /README.html
 /pkg/client
 /vendor
 zz_generated.deepcopy.go
-/.idea

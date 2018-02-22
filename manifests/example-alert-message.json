@@ -1,17 +1,16 @@
 {
-  "receiver": "publisher",
+  "receiver": "healer",
   "status": "firing",
   "alerts": [
     {
       "status": "firing",
       "labels": {
-        "alertname": "node-down",
-        "instance": "openshift.local",
-        "job": "nodes-nodes"
+        "alertname": "NodeDown",
+        "instance": "node0.openshift.jhernand.private",
+        "job": "nodes"
       },
       "annotations": {
-        "message": "There are less than three nodes up",
-        "severity": "HIGH"
+        "message": "Node 'node0.openshift.jhernand.private' is down"
       },
       "startsAt": "2018-02-07T21:18:36.917429089Z",
       "endsAt": "0001-01-01T00:00:00Z",
@@ -19,16 +18,15 @@
     }
   ],
   "groupLabels": {
-    "alertname": "node-down"
+    "alertname": "NodeDown"
   },
   "commonLabels": {
-    "alertname": "node-down",
-    "instance": "openshift.local",
+    "alertname": "NodeDown",
+    "instance": "node0.openshift.jhernand.private",
     "job": "nodes"
   },
   "commonAnnotations": {
-    "message": "There are less than three nodes up",
-    "severity": "HIGH"
+    "message": "Node 'node0.openshift.jhernand.private' is down"
   },
   "externalURL": "http://prometheus-4009290065-k2sh7:9093",
   "version": "4",

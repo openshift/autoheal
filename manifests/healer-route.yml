@@ -14,22 +14,14 @@
 # limitations under the License.
 #
 
----
-- name: Ensure that nodes are running
-  hosts: localhost
-  connection: local
-  gather_facts: false
-
-  tasks:
-  - name: Ensure master
-    ovirt_vms:
-      name: jhernand-openshift-master
-      state: running
-  - name: Ensure node0
-    ovirt_vms:
-      name: jhernand-openshift-node0
-      state: running
-  - name: Ensure node1
-    ovirt_vms:
-      name: jhernand-openshift-node1
-      state: running
+apiVersion: v1
+kind: Route
+metadata:
+  name: healer
+spec:
+  host: healer.jhernand.private
+  port:
+    targetPort: 9099
+  to:
+    kind: Service
+    name: healer

@@ -17,21 +17,26 @@ limitations under the License.
 package main
 
 import (
+	"bytes"
+	"context"
+	"encoding/json"
 	"fmt"
-	"regexp"
+	"io/ioutil"
+	"net/http"
+	"time"
 
 	"github.com/golang/glog"
-	batch "k8s.io/api/batch/v1"
-	core "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
-	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"golang.org/x/sync/syncmap"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/util/workqueue"
 
+	alertmanager "github.com/jhernand/openshift-monitoring/pkg/alertmanager"
 	monitoring "github.com/jhernand/openshift-monitoring/pkg/apis/monitoring/v1alpha1"
-	awx "github.com/jhernand/openshift-monitoring/pkg/awx"
 	genericinf "github.com/jhernand/openshift-monitoring/pkg/client/informers"
 	typedinf "github.com/jhernand/openshift-monitoring/pkg/client/informers/monitoring/v1alpha1"
 	openshift "github.com/jhernand/openshift-monitoring/pkg/client/openshift"
@@ -56,12 +61,16 @@ type Healer struct {
 	k8sClient kubernetes.Interface
 	osClient  openshift.Interface
 
-	// Informer factory.
-	informerFactory genericinf.SharedInformerFactory
-
 	// Informers.
-	alertInformer       typedinf.AlertInformer
-	healingRuleInformer typedinf.HealingRuleInformer
+	ruleInformer typedinf.HealingRuleInformer
+
+	// The current set of healing rules.
+	rulesCache *syncmap.Map
+
+	// We use two queues, one to process updates to the rules and another to process incoming
+	// notifications from the alert manager:
+	rulesQueue  workqueue.RateLimitingInterface
+	alertsQueue workqueue.RateLimitingInterface
 }
 
 // NewHealerBuilder creates a new builder for healers.
@@ -103,524 +112,146 @@ func (b *HealerBuilder) Build() (h *Healer, err error) {
 	h.osClient = b.osClient
 
 	// Save the reference to the informer factory:
-	h.informerFactory = b.informerFactory
 
-	return
-}
+	// Initialize the map of rules:
+	h.rulesCache = new(syncmap.Map)
 
-// Run waits for the informers caches to sync, and then starts the healer.
-//
-func (h *Healer) Run(stopCh <-chan struct{}) error {
-	defer runtime.HandleCrash()
+	// Create the queues:
+	h.rulesQueue = workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "rules")
+	h.alertsQueue = workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "alerts")
 
-	// Create the informers:
-	h.alertInformer = h.informerFactory.Monitoring().V1alpha1().Alerts()
-	h.healingRuleInformer = h.informerFactory.Monitoring().V1alpha1().HealingRules()
-
-	// Wait for the caches to be synced before starting the worker:
-	glog.Info("Waiting for informer caches to sync")
-	alertsSynced := h.alertInformer.Informer().HasSynced
-	healingRulesSynced := h.healingRuleInformer.Informer().HasSynced
-	if ok := cache.WaitForCacheSync(stopCh, alertsSynced, healingRulesSynced); !ok {
-		return fmt.Errorf("Failed to wait for caches to sync")
-	}
-
-	// Set up an event handler for when alerts are created, modified or deleted:
-	h.alertInformer.Informer().AddEventHandler(
+	// Set up an event handler to detect changes in the set of healing rules:
+	h.ruleInformer = b.informerFactory.Monitoring().V1alpha1().HealingRules()
+	h.ruleInformer.Informer().AddEventHandler(
 		cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
-				switch change := obj.(type) {
-				case *monitoring.Alert:
-					glog.Infof(
-						"Alert '%s' has been added",
-						change.ObjectMeta.Name,
-					)
-					h.handleAlertChange(change)
+				switch typed := obj.(type) {
+				case *monitoring.HealingRule:
+					change := &RuleChange{
+						Type: watch.Added,
+						Rule: typed,
+					}
+					h.rulesQueue.AddRateLimited(change)
 				}
 			},
-			UpdateFunc: func(oldObj, newObj interface{}) {
-				switch change := newObj.(type) {
-				case *monitoring.Alert:
-					glog.Infof(
-						"Alert '%s' has been updated",
-						change.ObjectMeta.Name,
-					)
-					h.handleAlertChange(change)
+			UpdateFunc: func(_, obj interface{}) {
+				switch typed := obj.(type) {
+				case *monitoring.HealingRule:
+					change := &RuleChange{
+						Type: watch.Modified,
+						Rule: typed,
+					}
+					h.rulesQueue.AddRateLimited(change)
 				}
 			},
 			DeleteFunc: func(obj interface{}) {
-				switch change := obj.(type) {
-				case *monitoring.Alert:
-					glog.Infof(
-						"Alert '%s' has been deleted",
-						change.ObjectMeta.Name,
-					)
+				switch typed := obj.(type) {
+				case *monitoring.HealingRule:
+					change := &RuleChange{
+						Type: watch.Deleted,
+						Rule: typed,
+					}
+					h.rulesQueue.AddRateLimited(change)
 				}
 			},
 		},
 	)
+
+	return
+}
+
+// Run waits for the informers caches to sync, and then starts the workers and the web server.
+//
+func (h *Healer) Run(stopCh <-chan struct{}) error {
+	defer runtime.HandleCrash()
+	defer h.rulesQueue.ShutDown()
+	defer h.alertsQueue.ShutDown()
+
+	// Wait for the caches to be synced before starting the workers:
+	glog.Info("Waiting for informer caches to sync")
+	rulesSynced := h.ruleInformer.Informer().HasSynced
+	if ok := cache.WaitForCacheSync(stopCh, rulesSynced); !ok {
+		return fmt.Errorf("Failed to wait for caches to sync")
+	}
+	glog.Info("Informer caches are in sync")
+
+	// Populate the rules cache:
+	rules, err := h.ruleInformer.Lister().List(labels.Everything())
+	if err != nil {
+		return err
+	}
+	for _, rule := range rules {
+		h.rulesCache.Store(rule.ObjectMeta.Name, rule)
+		glog.Infof("Loaded rule '%s'", rule.ObjectMeta.Name)
+	}
+
+	// Start the workers:
+	go wait.Until(h.runRulesWorker, time.Second, stopCh)
+	go wait.Until(h.runAlertsWorker, time.Second, stopCh)
+	glog.Info("Workers started")
+
+	// Start the web server:
+	http.HandleFunc("/", h.handleRequest)
+	server := &http.Server{Addr: ":9099"}
+	go server.ListenAndServe()
+	glog.Info("Web server started")
 
 	// Wait till we are requested to stop:
 	<-stopCh
 
+	// Shutdown the web server:
+	err = server.Shutdown(context.TODO())
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
-// handleAlertChange checks if the given alert change requires starting a healing process.
-//
-func (h *Healer) handleAlertChange(alert *monitoring.Alert) {
-	// Do the rest of the process with a copy of the alert, to avoid the risk of modifying the
-	// version of the alert stored in the cache of the informer:
-	alert = alert.DeepCopy()
-
-	// Check if the alert has alredy been resolved, or if is already being healed, as in both cases
-	// we don't need to do anything:
-	resolved := alert.HasCondition(monitoring.AlertResolved)
-	healing := alert.HasCondition(monitoring.AlertHealing)
-	if resolved || healing {
-		glog.Infof(
-			"Alert '%s' is already resolved or being healed",
-			alert.ObjectMeta.Name,
-		)
-		return
-	}
-
-	// Load the healing rules:
-	rules, err := h.healingRuleInformer.Lister().List(labels.Everything())
+func (h *Healer) handleRequest(response http.ResponseWriter, request *http.Request) {
+	// Read the request body:
+	body, err := ioutil.ReadAll(request.Body)
 	if err != nil {
-		glog.Errorf(
-			"Can't load healing rules: %s",
-			err.Error(),
+		glog.Warningf("Can't read request body: %s", err)
+		http.Error(
+			response,
+			http.StatusText(http.StatusBadRequest),
+			http.StatusBadRequest,
 		)
 		return
 	}
 
-	// Find the rules that are activated for the alert:
-	activated := make([]*monitoring.HealingRule, 0)
-	for _, rule := range rules {
-		if h.checkConditions(rule, alert) {
-			glog.Infof(
-				"Healing rule '%s' matches alert '%s'",
-				rule.ObjectMeta.Name,
-				alert.ObjectMeta.Name,
-			)
-			activated = append(activated, rule)
-		}
-	}
-	if len(activated) == 0 {
-		glog.Infof("No healing rule matches alert '%s'", alert.ObjectMeta.Name)
-		return
-	}
+	// Dump the request to the log:
+	glog.Infof("Request body:\n%s", h.indent(body))
 
-	// Mark he alert as being healed, and then execute the actions of the activated rules:
-	alert.AddCondition(monitoring.AlertHealing)
-	resource := h.osClient.Monitoring().Alerts(alert.ObjectMeta.Namespace)
-	_, err = resource.Update(alert)
+	// Parse the JSON request body:
+	message := new(alertmanager.Message)
+	json.Unmarshal(body, message)
 	if err != nil {
-		glog.Errorf(
-			"Can't update condition of alert '%s': %s",
-			alert.ObjectMeta.Name,
-			err.Error(),
+		glog.Warningf("Can't parse request body: %s", err)
+		http.Error(
+			response,
+			http.StatusText(http.StatusBadRequest),
+			http.StatusBadRequest,
 		)
 		return
 	}
-	for _, rule := range activated {
-		h.runActions(rule, alert)
+
+	// Handle the parsed message:
+	h.handleMessage(message)
+}
+
+func (h *Healer) handleMessage(message *alertmanager.Message) {
+	for _, alert := range message.Alerts {
+		h.alertsQueue.AddRateLimited(alert)
 	}
 }
 
-func (h *Healer) checkConditions(rule *monitoring.HealingRule, alert *monitoring.Alert) bool {
-	glog.Infof(
-		"Checking conditions of rule '%s' for alert '%s'",
-		rule.ObjectMeta.Name,
-		alert.ObjectMeta.Name,
-	)
-	if rule.Spec.Conditions != nil && len(rule.Spec.Conditions) > 0 {
-		for i := 0; i < len(rule.Spec.Conditions); i++ {
-			if !h.checkCondition(&rule.Spec.Conditions[i], alert) {
-				return false
-			}
-		}
-	}
-	return true
-}
-
-func (h *Healer) checkCondition(condition *monitoring.HealingCondition, alert *monitoring.Alert) bool {
-	matched, err := regexp.MatchString(condition.Alert, alert.ObjectMeta.Name)
+func (h *Healer) indent(data []byte) []byte {
+	buffer := new(bytes.Buffer)
+	err := json.Indent(buffer, data, "", "  ")
 	if err != nil {
-		glog.Errorf(
-			"Error while checking if alert name '%s' matches pattern '%s': %s",
-			alert.ObjectMeta.Name,
-			condition.Alert,
-			err.Error(),
-		)
-		matched = false
+		return data
 	}
-	return matched
-}
-
-func (h *Healer) runActions(rule *monitoring.HealingRule, alert *monitoring.Alert) {
-	if rule.Spec.Actions != nil && len(rule.Spec.Actions) > 0 {
-		glog.Infof(
-			"Running actions of healing rule '%s' for alert '%s'",
-			rule.ObjectMeta.Name,
-			alert.ObjectMeta.Name,
-		)
-		for i := 0; i < len(rule.Spec.Actions); i++ {
-			h.runAction(rule, &rule.Spec.Actions[i], alert)
-		}
-	} else {
-		glog.Warningf(
-			"Healing rule '%s' has no actions, will have no effect on alert '%s'",
-			rule.ObjectMeta.Name,
-			alert.ObjectMeta.Name,
-		)
-	}
-}
-
-func (h *Healer) runAction(rule *monitoring.HealingRule, action *monitoring.HealingAction, alert *monitoring.Alert) {
-	if action.AWXJob != nil {
-		h.runAWXJob(rule, action.AWXJob, alert)
-	} else if action.BatchJob != nil {
-		h.runBatchJob(rule, action.BatchJob, alert)
-	} else if action.AnsiblePlaybook != nil {
-		h.runAnsiblePlaybook(rule, action.AnsiblePlaybook, alert)
-	} else {
-		glog.Warningf(
-			"There are no action details, rule '%s' will have no effect on alert '%s'",
-			rule.ObjectMeta.Name,
-			alert.ObjectMeta.Name,
-		)
-	}
-}
-
-func (h *Healer) runAWXJob(rule *monitoring.HealingRule, action *monitoring.AWXJobAction, alert *monitoring.Alert) {
-	glog.Infof(
-		"Running AWX job from project '%s' and template '%s' to heal alert '%s'",
-		action.Project,
-		action.Template,
-		alert.ObjectMeta.Name,
-	)
-
-	// Load the AWX credentials:
-	secret := action.SecretRef
-	if secret == nil {
-		glog.Errorf(
-			"The secret containing the AWX credentials hasn't been specified",
-		)
-		return
-	}
-	username, password, err := h.loadAWXSecret(rule, secret)
-	if err != nil {
-		glog.Errorf(
-			"Can't load AWX credentials from secret '%s': %s",
-			secret.Name,
-			err.Error(),
-		)
-		return
-	}
-
-	// Create the connection to the AWX server:
-	connection, err := awx.NewConnectionBuilder().
-		Url(action.Address).
-		Proxy(action.Proxy).
-		Username(username).
-		Password(password).
-		Insecure(true).
-		Build()
-	if err != nil {
-		glog.Errorf("Can't create connection to AWX server: %s", err.Error())
-		return
-	}
-	defer connection.Close()
-
-	// Retrieve the job template:
-	templatesResource := connection.JobTemplates()
-	templatesResponse, err := templatesResource.Get().
-		Filter("project__name", action.Project).
-		Filter("name", action.Template).
-		Send()
-	if err != nil {
-		glog.Errorf(
-			"Can't retrieve AWX job templates named '%s' for project '%s': %s",
-			action.Template,
-			action.Project,
-			err.Error(),
-		)
-		return
-	}
-	if templatesResponse.Count() == 0 {
-		glog.Errorf(
-			"There are no AWX job templates named '%s' for project '%s'",
-			action.Template,
-			action.Project,
-		)
-		return
-	}
-
-	// Launch the jobs:
-	for _, template := range templatesResponse.Results() {
-		h.launchAWXJob(connection, template, action)
-	}
-}
-
-func (h *Healer) launchAWXJob(connection *awx.Connection, template *awx.JobTemplate, action *monitoring.AWXJobAction) {
-	templateId := template.Id()
-	templateName := template.Name()
-	launchResource := connection.JobTemplates().Id(templateId).Launch()
-	_, err := launchResource.Post().
-		ExtraVars(action.ExtraVars).
-		Send()
-	if err != nil {
-		glog.Errorf(
-			"Can't send request to launch job from template '%s': %s",
-			templateName,
-			err.Error(),
-		)
-	}
-	glog.Infof(
-		"Request to launch AWX job from template '%s' has been sent",
-		templateName,
-	)
-}
-
-func (h *Healer) loadAWXSecret(rule *monitoring.HealingRule, reference *core.SecretReference) (username, password string, err error) {
-	var data []byte
-	var ok bool
-
-	// The name of the secret is mandatory:
-	name := reference.Name
-	if name == "" {
-		err = fmt.Errorf(
-			"Can't load AWX secret for rule '%s', the name hasn't been specified",
-			rule.ObjectMeta.Name,
-		)
-		return
-	}
-
-	// The namespace of the secret is optional, the default is the namespace of the rule:
-	namespace := reference.Namespace
-	if namespace == "" {
-		namespace = rule.ObjectMeta.Namespace
-	}
-
-	// Retrieve the secret:
-	resource := h.k8sClient.CoreV1().Secrets(namespace)
-	secret, err := resource.Get(name, meta.GetOptions{})
-	if err != nil {
-		err = fmt.Errorf(
-			"Can't load secret '%s' from namespace '%s': %s",
-			name,
-			namespace,
-			err.Error(),
-		)
-		return
-	}
-
-	// Extract the user name:
-	data, ok = secret.Data["username"]
-	if !ok {
-		err = fmt.Errorf(
-			"Secret '%s' from namespace '%s' doesn't contain the 'username' entry",
-			name,
-			namespace,
-		)
-		return
-	}
-	username = string(data)
-
-	// Extract the password:
-	data, ok = secret.Data["password"]
-	if !ok {
-		err = fmt.Errorf(
-			"Secret '%s' from namespace '%s' doesn't contain the 'password' entry",
-			name,
-			namespace,
-		)
-		return
-	}
-	password = string(data)
-
-	return
-}
-
-func (h *Healer) runBatchJob(rule *monitoring.HealingRule, job *batch.Job, alert *monitoring.Alert) {
-	glog.Infof(
-		"Running batch job '%s' to heal alert '%s'",
-		job.ObjectMeta.Name,
-		alert.ObjectMeta.Name,
-	)
-
-	// The name of the job is mandatory:
-	name := job.ObjectMeta.Name
-	if name == "" {
-		glog.Errorf(
-			"Can't create job for rule '%s', the name hasn't been specified",
-			rule.ObjectMeta.Name,
-		)
-		return
-	}
-
-	// The namespace of the job is optional, the default is the namespace of the rule:
-	namespace := job.ObjectMeta.Namespace
-	if namespace == "" {
-		namespace = rule.ObjectMeta.Namespace
-	}
-
-	// Get the resource that manages the collection of batch jobs:
-	resource := h.k8sClient.Batch().Jobs(namespace)
-
-	// Try to create the job:
-	job = job.DeepCopy()
-	job.ObjectMeta.Name = name
-	job.ObjectMeta.Namespace = namespace
-	_, err := resource.Create(job)
-	if errors.IsAlreadyExists(err) {
-		glog.Warningf(
-			"Batch job '%s' already exists, will do nothing to heal alert '%s'",
-			job.ObjectMeta.Name,
-			alert.ObjectMeta.Name,
-		)
-	} else if err != nil {
-		glog.Errorf(
-			"Can't create batch job '%s' to heal alert '%s'",
-			job.ObjectMeta.Name,
-			alert.ObjectMeta.Name,
-		)
-	} else {
-		glog.Infof(
-			"Batch job '%s' to heal alert '%s' has been created",
-			job.ObjectMeta.Name,
-			alert.ObjectMeta.Name,
-		)
-	}
-}
-
-func (h *Healer) runAnsiblePlaybook(rule *monitoring.HealingRule, action *monitoring.AnsiblePlaybookAction, alert *monitoring.Alert) {
-	var err error
-
-	glog.Infof(
-		"Running Ansible playbook from healing rule '%s' and alert '%s'",
-		rule.ObjectMeta.Name,
-		alert.ObjectMeta.Name,
-	)
-
-	// The configuration map and the job will be in the same namespace and will have the same name
-	// than the alert:
-	namespace := alert.ObjectMeta.Namespace
-	name := alert.ObjectMeta.Name
-
-	// Populate the configuration map:
-	config := &core.ConfigMap{
-		ObjectMeta: meta.ObjectMeta{
-			Namespace: namespace,
-			Name:      name,
-		},
-		Data: map[string]string{
-			"playbook.yml": action.Playbook,
-			"inventory":    action.Inventory,
-		},
-	}
-
-	// Create the configuration map:
-	configsResource := h.k8sClient.Core().ConfigMaps(namespace)
-	_, err = configsResource.Create(config)
-	if errors.IsAlreadyExists(err) {
-		glog.Infof(
-			"Configuration map '%s' already exists",
-			config.ObjectMeta.Name,
-		)
-	} else if err != nil {
-		glog.Errorf(
-			"Can't create configuration map '%s': %s",
-			config.ObjectMeta.Name,
-			err.Error(),
-		)
-		return
-	} else {
-		glog.Infof(
-			"Created configuration map '%s'",
-			config.ObjectMeta.Name,
-		)
-	}
-
-	// Determine the user that will be used to run Ansible. This is needed because the UID must
-	// match the permissions set inside the image, otherwise Ansible will not be able to write to
-	// the home directory.
-	uid := int64(1000000000)
-
-	// Build the Ansible command line:
-	command := []string{
-		"/usr/bin/ansible-playbook",
-		"--inventory=/config/inventory",
-	}
-	if action.ExtraVars != "" {
-		command = append(command, "--extra-vars="+action.ExtraVars)
-	}
-	command = append(command, "/config/playbook.yml")
-
-	// Populate the job:
-	job := &batch.Job{
-		ObjectMeta: meta.ObjectMeta{
-			Namespace: namespace,
-			Name:      name,
-		},
-		Spec: batch.JobSpec{
-			Template: core.PodTemplateSpec{
-				Spec: core.PodSpec{
-					Volumes: []core.Volume{
-						core.Volume{
-							Name: "config",
-							VolumeSource: core.VolumeSource{
-								ConfigMap: &core.ConfigMapVolumeSource{
-									LocalObjectReference: core.LocalObjectReference{
-										Name: config.ObjectMeta.Name,
-									},
-								},
-							},
-						},
-					},
-					Containers: []core.Container{
-						core.Container{
-							Name:  "ansible-runner",
-							Image: "openshift-monitoring/ansible-runner:0.0.0",
-							SecurityContext: &core.SecurityContext{
-								RunAsUser: &uid,
-							},
-							Command: command,
-							VolumeMounts: []core.VolumeMount{
-								core.VolumeMount{
-									Name:      "config",
-									MountPath: "/config",
-								},
-							},
-						},
-					},
-					RestartPolicy: core.RestartPolicyNever,
-				},
-			},
-		},
-	}
-
-	// Create the job:
-	jobsResource := h.k8sClient.Batch().Jobs(namespace)
-	_, err = jobsResource.Create(job)
-	if errors.IsAlreadyExists(err) {
-		glog.Infof(
-			"Job '%s' already exists",
-			job.ObjectMeta.Name,
-		)
-	} else if err != nil {
-		glog.Errorf(
-			"Can't create job '%s': %s",
-			job.ObjectMeta.Name,
-			err.Error(),
-		)
-		return
-	} else {
-		glog.Infof(
-			"Created job '%s'",
-			job.ObjectMeta.Name,
-		)
-	}
+	return buffer.Bytes()
 }
