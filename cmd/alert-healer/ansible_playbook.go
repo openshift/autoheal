@@ -133,7 +133,7 @@ func (h *Healer) runAnsiblePlaybook(rule *monitoring.HealingRule, action *monito
 
 	// Create the job:
 	jobsResource := h.k8sClient.Batch().Jobs(namespace)
-	_, err = jobsResource.Create(job)
+	job, err = jobsResource.Create(job)
 	if errors.IsAlreadyExists(err) {
 		glog.Infof(
 			"Job '%s' already exists",
@@ -146,6 +146,21 @@ func (h *Healer) runAnsiblePlaybook(rule *monitoring.HealingRule, action *monito
 			"Created job '%s'",
 			job.ObjectMeta.Name,
 		)
+	}
+
+	// Update the configuration map so that it is owned by the job, this way when the job is delete
+	// the configuration map will also be automatically deleted:
+	config.ObjectMeta.OwnerReferences = []meta.OwnerReference{
+		meta.OwnerReference{
+			Kind:       "Job",
+			APIVersion: "v1",
+			Name:       job.ObjectMeta.Name,
+			UID:        job.ObjectMeta.UID,
+		},
+	}
+	_, err = configsResource.Update(config)
+	if err != nil {
+		return err
 	}
 
 	return nil
