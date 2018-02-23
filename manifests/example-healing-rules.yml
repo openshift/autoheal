@@ -96,14 +96,14 @@ spec:
               password: redhat123
               insecure: true
           tasks:
-          - name: Ensure host [[ $labels.instance ]]
+          - name: "Ensure host [[ $labels.instance ]]"
             ovirt_vms:
-              name: jhernand-openshift-{{ [[ $labels.instance ]] | regexp_replace('\..*$', '') }}
+              name: "jhernand-openshift-{{ [[ $labels.instance ]] | regexp_replace('\\..*$', '') }}"
               state: running
           post_tasks:
           - name: Logout from oVirt
             ovirt_auth:
               state: absent
-              ovirt_auth: {{ ovirt_auth }}
+              ovirt_auth: "{{ ovirt_auth }}"
       inventory: |-
         localhost

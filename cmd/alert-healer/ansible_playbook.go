@@ -17,6 +17,9 @@ limitations under the License.
 package main
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/golang/glog"
 	batch "k8s.io/api/batch/v1"
 	core "k8s.io/api/core/v1"
@@ -34,10 +37,12 @@ func (h *Healer) runAnsiblePlaybook(rule *monitoring.HealingRule, action *monito
 		alert.Name(),
 	)
 
-	// The configuration map and the job will be in the same namespace and will have the same name
-	// than the alert:
-	namespace := alert.Labels["namespace"]
-	name := alert.Name()
+	// The configuration map and the job will be in the namespace that corresponds to the alert:
+	namespace := alert.Namespace()
+
+	// The name of the configuration map and the job will be calculated from the name and hash of
+	// the alert, in order to make them unique:
+	name := fmt.Sprintf("%s-%s", strings.ToLower(alert.Name()), alert.Hash())
 
 	// Populate the configuration map:
 	config := &core.ConfigMap{
@@ -53,7 +58,7 @@ func (h *Healer) runAnsiblePlaybook(rule *monitoring.HealingRule, action *monito
 
 	// Create the configuration map:
 	configsResource := h.k8sClient.Core().ConfigMaps(namespace)
-	_, err := configsResource.Create(config)
+	config, err := configsResource.Create(config)
 	if errors.IsAlreadyExists(err) {
 		glog.Infof(
 			"Configuration map '%s' already exists",
