@@ -78,43 +78,32 @@ spec:
   conditions:
   - alert: "RunPlaybook"
   actions:
-  - ansiblePlaybook:
+  - delimiters:
+      left: "[["
+      right: "]]"
+    ansiblePlaybook:
       playbook: |-
         ---
-        - name: Ensure nodes
+        - name: Ensure oVirt host
           hosts: localhost
           connection: local
           gather_facts: false
           pre_tasks:
           - name: Login to oVirt
             ovirt_auth:
-              url: "{{ ovirt_url }}"
-              username: "{{ ovirt_user }}"
-              password: "{{ ovirt_password }}"
+              url: https://engine42.example.com/ovirt-engine/api
+              username: admin@internal
+              password: redhat123
               insecure: true
           tasks:
-          - name: Ensure master
+          - name: Ensure host [[ $labels.instance ]]
             ovirt_vms:
-              name: jhernand-openshift-master
-              state: running
-          - name: Ensure node0
-            ovirt_vms:
-              name: jhernand-openshift-node0
-              state: running
-          - name: Ensure node1
-            ovirt_vms:
-              name: jhernand-openshift-node1
+              name: jhernand-openshift-{{ [[ $labels.instance ]] | regexp_replace('\..*$', '') }}
               state: running
           post_tasks:
           - name: Logout from oVirt
             ovirt_auth:
               state: absent
-              ovirt_auth: "{{ ovirt_auth }}"
+              ovirt_auth: {{ ovirt_auth }}
       inventory: |-
         localhost
-      extraVars: |-
-        {
-          "ovirt_url": "https://engine42.local/ovirt-engine",
-          "ovirt_user": "admin@internal",
-          "ovirt_password": "redhat123"
-        }

@@ -17,10 +17,7 @@ limitations under the License.
 package main
 
 import (
-	"bytes"
-	"encoding/json"
 	"regexp"
-	"text/template"
 
 	"github.com/golang/glog"
 	"k8s.io/apimachinery/pkg/util/runtime"
@@ -178,57 +175,44 @@ func (h *Healer) runActions(rule *monitoring.HealingRule, alert *alertmanager.Al
 }
 
 func (h *Healer) runAction(rule *monitoring.HealingRule, action *monitoring.HealingAction, alert *alertmanager.Alert) error {
-	// Convert the action to a JSON document, so that we can easily process it as a temlate:
-	blob, err := json.Marshal(action)
+	// Make a copy of the action to ensure that the original, which is stored in the rules cache, it
+	// isn't modified during the rest of the process:
+	action = action.DeepCopy()
+
+	// Remove the template configuration from the copy, as we don't want to process the delimiters
+	// themselves as templates, would generate errors.
+	var left, right string
+	if action.Delimiters != nil {
+		left = action.Delimiters.Left
+		right = action.Delimiters.Right
+	}
+	action.Delimiters = nil
+
+	// Process the templates inside the the action:
+	template, err := NewObjectTemplateBuilder().
+		Delimiters(left, right).
+		Variable("alert", ".").
+		Variable("labels", ".Labels").
+		Variable("annotations", ".Annotations").
+		Build()
 	if err != nil {
 		return err
 	}
-	glog.Infof(
-		"Action before processing template:\n%s",
-		h.indent(blob),
-	)
-
-	// Generate the template, adding some convenience variables:
-	buffer := new(bytes.Buffer)
-	buffer.WriteString("{{ $alert := . }}\n")
-	buffer.WriteString("{{ $labels := .Labels }}\n")
-	buffer.WriteString("{{ $annotations := .Annotations }}\n")
-	buffer.Write(blob)
-	text := buffer.String()
-	glog.Infof(
-		"Generated template:\n%s",
-		text,
-	)
-
-	// Parse and run the template:
-	tmpl, err := template.New("action").Parse(text)
-	if err != nil {
-		return err
-	}
-	buffer.Reset()
-	err = tmpl.Execute(buffer, alert)
-	if err != nil {
-		return err
-	}
-	blob = buffer.Bytes()
-	glog.Infof(
-		"Action after processing template:\n%s",
-		h.indent(blob),
-	)
-
-	// Convert the processed JSON document back to an action:
-	action = new(monitoring.HealingAction)
-	err = json.Unmarshal(blob, action)
+	err = template.Process(action, alert)
 	if err != nil {
 		return err
 	}
 
-	// Check the type of action and run it:
+	// Decide which kind of action to run, and run it:
 	if action.AWXJob != nil {
 		return h.runAWXJob(rule, action.AWXJob, alert)
 	} else if action.BatchJob != nil {
 		return h.runBatchJob(rule, action.BatchJob, alert)
 	} else if action.AnsiblePlaybook != nil {
+		err = template.Process(action.AnsiblePlaybook, alert)
+		if err != nil {
+			return err
+		}
 		return h.runAnsiblePlaybook(rule, action.AnsiblePlaybook, alert)
 	} else {
 		glog.Warningf(
@@ -237,6 +221,5 @@ func (h *Healer) runAction(rule *monitoring.HealingRule, action *monitoring.Heal
 			alert.Name(),
 		)
 	}
-
 	return nil
 }

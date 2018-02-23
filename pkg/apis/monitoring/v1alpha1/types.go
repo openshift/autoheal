@@ -137,17 +137,31 @@ type HealingCondition struct {
 // HealingAction represents an action that will be performed when a healing rule is activated.
 //
 type HealingAction struct {
+	// Delimiters indicates the delimiters that will be used in the text templates instead of the
+	// default {{ and }} used in Go templates. This is specially convenient when the text of the
+	// action contains an Ansible playbook, as the Go delimeters conflict with the Jinja2
+	// delimiters.
+	// +optional
+	Delimiters *Delimiters `json:"delimiters,omitempty" protobuf:"bytes,1,opt,name=delimiters`
+
 	// AWXJob is used when the healing action is implemented by an Ansible AWX job.
 	// +optional
-	AWXJob *AWXJobAction `json:"awxJob,omitempty" protobuf:"bytes,1,opt,name=awxJob`
+	AWXJob *AWXJobAction `json:"awxJob,omitempty" protobuf:"bytes,2,opt,name=awxJob`
 
 	// BatchJob is used when the healing action is implemented by a Kubernetes batch job.
 	// +optional
-	BatchJob *batch.Job `json:"batchJob,omitempty" protobuf:"bytes,2,opt,name=batchJob`
+	BatchJob *batch.Job `json:"batchJob,omitempty" protobuf:"bytes,3,opt,name=batchJob`
 
 	// AnsiblePlaybook is used when the healing action is implemented by an Ansible playbook.
 	// +optional
-	AnsiblePlaybook *AnsiblePlaybookAction `json:"ansiblePlaybook,omitempty" protobuf:"bytes,3,opt,name=ansiblePlaybook`
+	AnsiblePlaybook *AnsiblePlaybookAction `json:"ansiblePlaybook,omitempty" protobuf:"bytes,4,opt,name=ansiblePlaybook`
+}
+
+// Delimiters indicates the delimiters used to mark expressions inside text templates.
+//
+type Delimiters struct {
+	Left  string `json:"left,omitempty" protobuf:"bytes,1,opt,name=left`
+	Right string `json:"right,omitempty" protobuf:"bytes,2,opt,name=right`
 }
 
 // AWXJobAction describes how to run an Ansible AWX job.
