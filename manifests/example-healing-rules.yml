@@ -26,7 +26,10 @@ spec:
   conditions:
   - alert: "NodeDown"
   actions:
-  - awxJob:
+  - delimiters:
+      left: "[["
+      right: "]]"
+    awxJob:
       address: https://tower.private/api
       secretRef:
         name: awx
@@ -34,7 +37,7 @@ spec:
       template: "Ensure oVirt host"
       extraVars: |-
         {
-          "ovirt_host": "{{ $labels.instance }}"
+          "ovirt_host": "[[ $labels.instance ]]"
         }
 
 ---
