@@ -146,7 +146,7 @@ func (t *ObjectTemplate) processValue(value reflect.Value, data interface{}) err
 func (t *ObjectTemplate) processString(value reflect.Value, data interface{}) error {
 	// Get the original text:
 	text := value.String()
-	if glog.V(2) {
+	if glog.V(3) {
 		glog.Infof("Original text:\n%s", text)
 	}
 
@@ -157,7 +157,7 @@ func (t *ObjectTemplate) processString(value reflect.Value, data interface{}) er
 	}
 	buffer.WriteString(text)
 	text = buffer.String()
-	if glog.V(2) {
+	if glog.V(3) {
 		glog.Infof("Generated template:\n%s", text)
 	}
 
@@ -172,9 +172,12 @@ func (t *ObjectTemplate) processString(value reflect.Value, data interface{}) er
 		return err
 	}
 	text = buffer.String()
-	if glog.V(2) {
+	if glog.V(3) {
 		glog.Infof("Generated text:\n%s", text)
 	}
+
+	// Modify the value:
+	value.SetString(text)
 
 	return nil
 }
