@@ -80,10 +80,6 @@ type HealingAction struct {
 	// BatchJob is used when the healing action is implemented by a Kubernetes batch job.
 	// +optional
 	BatchJob *batch.Job `json:"batchJob,omitempty" protobuf:"bytes,3,opt,name=batchJob`
-
-	// AnsiblePlaybook is used when the healing action is implemented by an Ansible playbook.
-	// +optional
-	AnsiblePlaybook *AnsiblePlaybookAction `json:"ansiblePlaybook,omitempty" protobuf:"bytes,4,opt,name=ansiblePlaybook`
 }
 
 // Delimiters indicates the delimiters used to mark expressions inside text templates.
@@ -120,27 +116,6 @@ type AWXJobAction struct {
 	// ExtraVars are the extra variables that will be passed to job.
 	// +optional
 	ExtraVars string `json:"extraVars,omitempty" protobuf:"bytes,5,opt,name=extraVars`
-}
-
-// AnsiblePlaybookAction describes ho to run an Ansible playbook.
-//
-type AnsiblePlaybookAction struct {
-	// Playbook is the complete text of the playbook.
-	// +optional
-	Playbook string `json:"playbook,omitempty" protobuf:"bytes,1,opt,name=playbook`
-
-	// Inventory is the complete text of the inventory.
-	// +optional
-	Inventory string `json:"inventory,omitempty" protobuf:"bytes,2,opt,name=inventory`
-
-	// SecretRef is the reference (name, and optionally namespace) of the secret that contains the
-	// SSH private key that Ansible will use to access the hosts.
-	// +optional
-	SecretRef *core.SecretReference `json:"secretRef,omitempty" protobuf:"bytes,3,opt,name=secretRef`
-
-	// ExtraVars are the extra variables that will be passed to Ansible.
-	// +optional
-	ExtraVars string `json:"extraVars,omitempty" protobuf:"bytes,4,opt,name=extraVars`
 }
 
 // HealingRuleStatus is the status for an alerting rule.

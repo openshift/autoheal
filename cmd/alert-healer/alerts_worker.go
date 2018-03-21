@@ -208,12 +208,6 @@ func (h *Healer) runAction(rule *monitoring.HealingRule, action *monitoring.Heal
 		return h.runAWXJob(rule, action.AWXJob, alert)
 	} else if action.BatchJob != nil {
 		return h.runBatchJob(rule, action.BatchJob, alert)
-	} else if action.AnsiblePlaybook != nil {
-		err = template.Process(action.AnsiblePlaybook, alert)
-		if err != nil {
-			return err
-		}
-		return h.runAnsiblePlaybook(rule, action.AnsiblePlaybook, alert)
 	} else {
 		glog.Warningf(
 			"There are no action details, rule '%s' will have no effect on alert '%s'",
