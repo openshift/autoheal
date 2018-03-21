@@ -55,8 +55,6 @@ var (
 //
 func addKnownTypes(scheme *runtime.Scheme) error {
 	scheme.AddKnownTypes(SchemeGroupVersion,
-		&AlertingRule{},
-		&AlertingRuleList{},
 		&HealingRule{},
 		&HealingRuleList{},
 	)
