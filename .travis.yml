@@ -1,0 +1,18 @@
+sudo: required
+
+language: go
+
+services:
+- docker
+
+go_import_path: github.com/jhernand/openshift-monitoring
+
+go:
+- 1.9
+
+before_install:
+- wget --output-document="${HOME}/bin/dep" "https://github.com/golang/dep/releases/download/v0.4.1/dep-linux-amd64"
+- chmod +x "${HOME}/bin/dep"
+
+script:
+- make

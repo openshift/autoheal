@@ -1,0 +1,42 @@
+= OpenShift Monitoring
+
+== Introduction
+
+image:https://travis-ci.org/jhernand/openshift-monitoring.svg?branch=master["Build Status", link="https://travis-ci.org/jhernand/openshift-monitoring"]
+
+This project contains a set of experimental tools useful for monitoring
+https://www.openshift.com/[OpenShift] clusters.
+
+== Building
+
+Before trying to build makes sure that you have the following installed and
+available in your `PATH` environment variable:
+
+https://www.docker.com[docker]:: It is used to build the container images
+of the project.
+
+https://www.python.org[python]:: It is usec to execute the `build` script,
+which is written in Python.
+
+https://golang.org[go]:: It is used to build the Go source code of the project.
+
+https://golang.github.io/dep[dep]:: It is used to manage the Go dependencies
+and populate the `vendor` directory.
+
+To build the project run the `build` script. It uses the `dep` tool to
+populate the `vendor` directory, it downloads the code generators needed to
+generate the Kubernetes client code, and then builds all the binaries inside the
+`cmd` subdirectories. To use it just run it:
+
+  $ ./build
+
+The `build` script creates a `.gopath` directory and sets the `GOPATH`
+enviroment variable pointint to it, so there is no need to adjust your
+enviroment for that, and there is no need to place the project into any special
+directory. Just check out the code, and then run the `build` script.
+
+The generated binaries will be in the `.gopath/bin` directory.
+
+The project also contains a `Makefile`, but it is just a wrapper that calls the
+`build` script, its only purpose is to make life easier for persons that are
+used to run `make` to build.
