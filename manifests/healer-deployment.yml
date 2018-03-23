@@ -31,6 +31,6 @@ spec:
       serviceAccountName: healer
       containers:
       - name: healer
-        image: openshift-monitoring/alert-healer:0.0.0
+        image: autoheal/alert-healer:0.0.0
         securityContext:
           runAsUser: 1000000000 # Must match the UID in the image.

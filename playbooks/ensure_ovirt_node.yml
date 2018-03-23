@@ -23,5 +23,5 @@
   tasks:
   - name: Ensure oVirt host {{ ovirt_host }}
     ovirt_vms:
-      name: jhernand-openshift-{{ ovirt_host | regex_replace('\..*$', '') }}
+      name: openshift-{{ ovirt_host | regex_replace('\..*$', '') }}
       state: running

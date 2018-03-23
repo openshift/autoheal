@@ -28,9 +28,9 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/homedir"
 
-	"github.com/jhernand/openshift-monitoring/pkg/client/informers"
-	"github.com/jhernand/openshift-monitoring/pkg/client/openshift"
-	"github.com/jhernand/openshift-monitoring/pkg/signals"
+	"github.com/openshift/autoheal/pkg/client/informers"
+	"github.com/openshift/autoheal/pkg/client/openshift"
+	"github.com/openshift/autoheal/pkg/signals"
 )
 
 // Values of the command line options:

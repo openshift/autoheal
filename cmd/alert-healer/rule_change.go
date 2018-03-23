@@ -19,7 +19,7 @@ package main
 import (
 	"k8s.io/apimachinery/pkg/watch"
 
-	monitoring "github.com/jhernand/openshift-monitoring/pkg/apis/monitoring/v1alpha1"
+	monitoring "github.com/openshift/autoheal/pkg/apis/monitoring/v1alpha1"
 )
 
 // RuleChange contains information describing a change that happened to a healing rule.

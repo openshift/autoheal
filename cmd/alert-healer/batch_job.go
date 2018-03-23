@@ -23,8 +23,8 @@ import (
 	batch "k8s.io/api/batch/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 
-	alertmanager "github.com/jhernand/openshift-monitoring/pkg/alertmanager"
-	monitoring "github.com/jhernand/openshift-monitoring/pkg/apis/monitoring/v1alpha1"
+	alertmanager "github.com/openshift/autoheal/pkg/alertmanager"
+	monitoring "github.com/openshift/autoheal/pkg/apis/monitoring/v1alpha1"
 )
 
 func (h *Healer) runBatchJob(rule *monitoring.HealingRule, job *batch.Job, alert *alertmanager.Alert) error {

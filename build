@@ -29,10 +29,10 @@ import tempfile
 import urllib.request
 
 # The import path of the project:
-IMPORT_PATH = "github.com/jhernand/openshift-monitoring"
+IMPORT_PATH = "github.com/openshift/autoheal"
 
 # The name and version of the project:
-PROJECT_NAME = "openshift-monitoring"
+PROJECT_NAME = "autoheal"
 PROJECT_VERSION = "0.0.0"
 
 # The regular expression that will be used to replace variable names

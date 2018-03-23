@@ -23,9 +23,9 @@ import (
 	core "k8s.io/api/core/v1"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	alertmanager "github.com/jhernand/openshift-monitoring/pkg/alertmanager"
-	monitoring "github.com/jhernand/openshift-monitoring/pkg/apis/monitoring/v1alpha1"
-	awx "github.com/jhernand/openshift-monitoring/pkg/awx"
+	alertmanager "github.com/openshift/autoheal/pkg/alertmanager"
+	monitoring "github.com/openshift/autoheal/pkg/apis/monitoring/v1alpha1"
+	awx "github.com/openshift/autoheal/pkg/awx"
 )
 
 func (h *Healer) runAWXJob(rule *monitoring.HealingRule, action *monitoring.AWXJobAction, alert *alertmanager.Alert) error {
