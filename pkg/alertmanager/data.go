@@ -93,7 +93,7 @@ func (a *Alert) Hash() string {
 func hashMap(src map[string]string, dst hash.Hash) {
 	keys := make([]string, len(src))
 	i := 0
-	for key, _ := range src {
+	for key := range src {
 		keys[i] = key
 		i++
 	}
