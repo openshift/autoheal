@@ -2,8 +2,6 @@
 
 == Introduction
 
-image:https://travis-ci.org/jhernand/openshift-monitoring.svg?branch=master["Build Status", link="https://travis-ci.org/jhernand/openshift-monitoring"]
-
 This project contains a set of experimental tools useful for monitoring
 https://www.openshift.com/[OpenShift] clusters.
 

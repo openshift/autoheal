@@ -22,8 +22,8 @@ import (
 	"github.com/golang/glog"
 	"k8s.io/apimachinery/pkg/util/runtime"
 
-	alertmanager "github.com/jhernand/openshift-monitoring/pkg/alertmanager"
-	monitoring "github.com/jhernand/openshift-monitoring/pkg/apis/monitoring/v1alpha1"
+	alertmanager "github.com/openshift/autoheal/pkg/alertmanager"
+	monitoring "github.com/openshift/autoheal/pkg/apis/monitoring/v1alpha1"
 )
 
 func (h *Healer) runAlertsWorker() {

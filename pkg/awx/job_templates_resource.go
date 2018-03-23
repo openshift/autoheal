@@ -22,7 +22,7 @@ package awx
 import (
 	"fmt"
 
-	"github.com/jhernand/openshift-monitoring/pkg/awx/internal/data"
+	"github.com/openshift/autoheal/pkg/awx/internal/data"
 )
 
 type JobTemplatesResource struct {

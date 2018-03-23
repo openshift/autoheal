@@ -27,7 +27,7 @@ import (
 	"strings"
 
 	"github.com/golang/glog"
-	"github.com/jhernand/openshift-monitoring/pkg/awx/internal/data"
+	"github.com/openshift/autoheal/pkg/awx/internal/data"
 )
 
 // Version is the version of the client.

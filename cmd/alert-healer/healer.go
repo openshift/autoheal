@@ -35,11 +35,11 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 
-	alertmanager "github.com/jhernand/openshift-monitoring/pkg/alertmanager"
-	monitoring "github.com/jhernand/openshift-monitoring/pkg/apis/monitoring/v1alpha1"
-	genericinf "github.com/jhernand/openshift-monitoring/pkg/client/informers"
-	typedinf "github.com/jhernand/openshift-monitoring/pkg/client/informers/monitoring/v1alpha1"
-	openshift "github.com/jhernand/openshift-monitoring/pkg/client/openshift"
+	alertmanager "github.com/openshift/autoheal/pkg/alertmanager"
+	monitoring "github.com/openshift/autoheal/pkg/apis/monitoring/v1alpha1"
+	genericinf "github.com/openshift/autoheal/pkg/client/informers"
+	typedinf "github.com/openshift/autoheal/pkg/client/informers/monitoring/v1alpha1"
+	openshift "github.com/openshift/autoheal/pkg/client/openshift"
 )
 
 // HealerBuilder is used to create new healers.

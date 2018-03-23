@@ -19,7 +19,7 @@ kind: Route
 metadata:
   name: healer
 spec:
-  host: healer.jhernand.private
+  host: healer.private
   port:
     targetPort: 9099
   to:
