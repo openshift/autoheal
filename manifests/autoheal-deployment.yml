@@ -17,20 +17,18 @@
 apiVersion: apps/v1beta1
 kind: Deployment
 metadata:
-  name: healer
+  name: autoheal
 spec:
   selector:
     matchLabels:
-      app: healer
+      app: autoheal
   replicas: 1
   template:
     metadata:
       labels:
-        app: healer
+        app: autoheal
     spec:
-      serviceAccountName: healer
+      serviceAccountName: autoheal
       containers:
-      - name: healer
-        image: autoheal/alert-healer:0.0.0
-        securityContext:
-          runAsUser: 1000000000 # Must match the UID in the image.
+      - name: autoheal
+        image: openshift/origin-autoheal:latest

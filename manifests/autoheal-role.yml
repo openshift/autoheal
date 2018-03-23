@@ -17,7 +17,7 @@
 apiVersion: v1
 kind: ClusterRole
 metadata:
-  name: healer
+  name: autoheal
 rules:
 - apiGroups:
   - monitoring.openshift.io

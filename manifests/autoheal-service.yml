@@ -16,12 +16,12 @@
 
 kind: Service
 metadata:
-  name: healer
+  name: autoheal
 spec:
   selector:                  
-    app: healer
+    app: autoheal
   ports:
-  - name: healer
+  - name: autoheal
     protocol: TCP
     port: 9099
     targetPort: 9099

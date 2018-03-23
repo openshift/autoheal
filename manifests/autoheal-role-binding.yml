@@ -17,12 +17,12 @@
 apiVersion: v1
 kind: ClusterRoleBinding
 metadata:
-  name: healer
+  name: autoheal
 roleRef:
-  name: healer
+  name: autoheal
 subjects:
 - kind: ServiceAccount
-  name: healer
+  name: autoheal
   namspace: default
 userNames:
-- system:serviceaccount:default:healer
+- system:serviceaccount:default:autoheal

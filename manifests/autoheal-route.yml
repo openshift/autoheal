@@ -15,6 +15,13 @@
 #
 
 apiVersion: v1
-kind: ServiceAccount
+kind: Route
 metadata:
-  name: healer
+  name: autoheal
+spec:
+  host: autoheal.private
+  port:
+    targetPort: 9099
+  to:
+    kind: Service
+    name: autoheal

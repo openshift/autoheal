@@ -1,11 +1,3 @@
-#
-# This is a template package spec that will support Go builds following the OpenShift conventions.
-# It expects a set of standard env vars that define the Git version being built and can also handle
-# multi-architecture Linux builds. It has stubs for cross building.
-#
-# Search for TODO and fill those sections out as appropriate.
-#
-
 #debuginfo not supported with Go
 %global debug_package %{nil}
 
@@ -49,14 +41,14 @@
 %global golang_version 1.8.1
 %{!?version: %global version 0.0.1}
 %{!?release: %global release 1}
-%global package_name openshift-autoheal # PACKAGE_NAME
-%global product_name TODO # PRODUCT_NAME
-%global import_path TODO # GO_PACKAGE
+%global package_name openshift-autoheal
+%global product_name OpenShift Autoheal
+%global import_path github.com/openshift/autoheal
 
 Name:           %{package_name}
 Version:        %{version}
 Release:        %{release}%{?dist}
-Summary:        TODO
+Summary:        Provides a service capable of automatically responding to alerts
 License:        ASL 2.0
 URL:            https://%{import_path}
 
@@ -73,7 +65,7 @@ ExclusiveArch:  x86_64 aarch64 ppc64le s390x
 ### AUTO-BUNDLED-GEN-ENTRY-POINT
 
 %description
-TODO
+Provides a service that is capable of automatically responding to alerts.
 
 %prep
 %if 0%{do_prep}
@@ -112,31 +104,19 @@ PLATFORM="$(go env GOHOSTOS)/$(go env GOHOSTARCH)"
 install -d %{buildroot}%{_bindir}
 
 # Install linux components
-for bin in TODO
+for bin in autoheal
 do
   echo "+++ INSTALLING ${bin}"
   install -p -m 755 _output/local/bin/${PLATFORM}/${bin} %{buildroot}%{_bindir}/${bin}
 done
 
-# EXAMPLE: Install tests
-# install -d %{buildroot}%{_libexecdir}/%{name}
-# install -p -m 755 _output/local/bin/${PLATFORM}/extended.test %{buildroot}%{_libexecdir}/%{name}/
-
-# EXAMPLE: Install other files
-# install -p -m 0755 _output/local/bin/${PLATFORM}/sdn-cni-plugin %{buildroot}/opt/cni/bin/openshift-sdn
-
 %files
 %doc README.md
 %license LICENSE
-%{_bindir}/TODO
-# EXAMPLE: Managing configuration
-# %defattr(-,root,root,0700)
-# %dir %config(noreplace) %{_sysconfdir}/origin
-# %ghost %dir %config(noreplace) %{_sysconfdir}/origin
-# %ghost %config(noreplace) %{_sysconfdir}/origin/.config_managed
+%{_bindir}/autoheal
 
 %pre
 
 %changelog
-* Mon Nov 06 2017 Anonymous <anon@nowhere.com> 0.0.1
-- Initial example of spec.
+* Fri Mar 23 2018 Juan Hernandez <jhernand@redhat.com> - 0.0.1
+- Initial packaging.
