@@ -56,7 +56,6 @@ var (
 func addKnownTypes(scheme *runtime.Scheme) error {
 	scheme.AddKnownTypes(SchemeGroupVersion,
 		&HealingRule{},
-		&HealingRuleList{},
 	)
 
 	// Add the watch version that applies

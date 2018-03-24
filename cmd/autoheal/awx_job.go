@@ -17,11 +17,7 @@ limitations under the License.
 package main
 
 import (
-	"fmt"
-
 	"github.com/golang/glog"
-	core "k8s.io/api/core/v1"
-	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	alertmanager "github.com/openshift/autoheal/pkg/alertmanager"
 	monitoring "github.com/openshift/autoheal/pkg/apis/monitoring/v1alpha1"
@@ -29,29 +25,26 @@ import (
 )
 
 func (h *Healer) runAWXJob(rule *monitoring.HealingRule, action *monitoring.AWXJobAction, alert *alertmanager.Alert) error {
-	glog.Infof(
-		"Running AWX job from project '%s' and template '%s' to heal alert '%s'",
-		action.Project,
-		action.Template,
-		alert.Name(),
-	)
+	var err error
 
-	// Load the AWX credentials:
-	secret := action.SecretRef
-	if secret == nil {
-		return fmt.Errorf("The secret containing the AWX credentials hasn't been specified")
-	}
-	username, password, err := h.loadAWXSecret(rule, secret)
-	if err != nil {
-		return err
-	}
+	// Get the AWX connection details from the configuration:
+	awxAddress := h.config.AWX().Address()
+	awxProxy := h.config.AWX().Proxy()
+	awxUser := h.config.AWX().User()
+	awxPassword := h.config.AWX().Password()
+
+	// Get the name of the AWX project name from the configuration:
+	awxProject := h.config.AWX().Project()
+
+	// Get the name of the AWX job template from the action:
+	awxTemplate := action.Template
 
 	// Create the connection to the AWX server:
 	connection, err := awx.NewConnectionBuilder().
-		Url(action.Address).
-		Proxy(action.Proxy).
-		Username(username).
-		Password(password).
+		Url(awxAddress).
+		Proxy(awxProxy).
+		Username(awxUser).
+		Password(awxPassword).
 		Insecure(true).
 		Build()
 	if err != nil {
@@ -62,8 +55,8 @@ func (h *Healer) runAWXJob(rule *monitoring.HealingRule, action *monitoring.AWXJ
 	// Retrieve the job template:
 	templatesResource := connection.JobTemplates()
 	templatesResponse, err := templatesResource.Get().
-		Filter("project__name", action.Project).
-		Filter("name", action.Template).
+		Filter("project__name", awxProject).
+		Filter("name", awxTemplate).
 		Send()
 	if err != nil {
 		return err
@@ -73,6 +66,12 @@ func (h *Healer) runAWXJob(rule *monitoring.HealingRule, action *monitoring.AWXJ
 	}
 
 	// Launch the jobs:
+	glog.Infof(
+		"Running AWX job from project '%s' and template '%s' to heal alert '%s'",
+		awxProject,
+		awxTemplate,
+		alert.Name(),
+	)
 	for _, template := range templatesResponse.Results() {
 		err := h.launchAWXJob(connection, template, action)
 		if err != nil {
@@ -98,64 +97,4 @@ func (h *Healer) launchAWXJob(connection *awx.Connection, template *awx.JobTempl
 		templateName,
 	)
 	return nil
-}
-
-func (h *Healer) loadAWXSecret(rule *monitoring.HealingRule, reference *core.SecretReference) (username, password string, err error) {
-	var data []byte
-	var ok bool
-
-	// The name of the secret is mandatory:
-	name := reference.Name
-	if name == "" {
-		err = fmt.Errorf(
-			"Can't load AWX secret for rule '%s', the name hasn't been specified",
-			rule.ObjectMeta.Name,
-		)
-		return
-	}
-
-	// The namespace of the secret is optional, the default is the namespace of the rule:
-	namespace := reference.Namespace
-	if namespace == "" {
-		namespace = rule.ObjectMeta.Namespace
-	}
-
-	// Retrieve the secret:
-	resource := h.k8sClient.CoreV1().Secrets(namespace)
-	secret, err := resource.Get(name, meta.GetOptions{})
-	if err != nil {
-		err = fmt.Errorf(
-			"Can't load secret '%s' from namespace '%s': %s",
-			name,
-			namespace,
-			err.Error(),
-		)
-		return
-	}
-
-	// Extract the user name:
-	data, ok = secret.Data["username"]
-	if !ok {
-		err = fmt.Errorf(
-			"Secret '%s' from namespace '%s' doesn't contain the 'username' entry",
-			name,
-			namespace,
-		)
-		return
-	}
-	username = string(data)
-
-	// Extract the password:
-	data, ok = secret.Data["password"]
-	if !ok {
-		err = fmt.Errorf(
-			"Secret '%s' from namespace '%s' doesn't contain the 'password' entry",
-			name,
-			namespace,
-		)
-		return
-	}
-	password = string(data)
-
-	return
 }

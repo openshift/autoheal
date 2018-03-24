@@ -88,9 +88,17 @@ func (h *Healer) startHealing(alert *alertmanager.Alert) error {
 	activated := make([]*monitoring.HealingRule, 0)
 	h.rulesCache.Range(func(_, value interface{}) bool {
 		rule := value.(*monitoring.HealingRule)
-		if h.checkConditions(rule, alert) {
+		matches, err := h.checkRule(rule, alert)
+		if err != nil {
+			glog.Errorf(
+				"Error while checking if rule '%s' matches alert '%s': %s",
+				rule.ObjectMeta.Name,
+				alert.Name(),
+				err,
+			)
+		} else if matches {
 			glog.Infof(
-				"Healing rule '%s' matches alert '%s'",
+				"Rule '%s' matches alert '%s'",
 				rule.ObjectMeta.Name,
 				alert.Name(),
 			)
@@ -99,13 +107,13 @@ func (h *Healer) startHealing(alert *alertmanager.Alert) error {
 		return true
 	})
 	if len(activated) == 0 {
-		glog.Infof("No healing rule matches alert '%s'", alert.Name())
+		glog.Infof("No rule matches alert '%s'", alert.Name())
 		return nil
 	}
 
-	// Execute the actions of the activated rules:
+	// Execute the activated rules:
 	for _, rule := range activated {
-		err := h.runActions(rule, alert)
+		err := h.runRule(rule, alert)
 		if err != nil {
 			return err
 		}
@@ -120,77 +128,54 @@ func (h *Healer) cancelHealing(alert *alertmanager.Alert) error {
 	return nil
 }
 
-func (h *Healer) checkConditions(rule *monitoring.HealingRule, alert *alertmanager.Alert) bool {
+func (h *Healer) checkRule(rule *monitoring.HealingRule, alert *alertmanager.Alert) (matches bool, err error) {
 	glog.Infof(
-		"Checking conditions of rule '%s' for alert '%s'",
+		"Checking rule '%s' for alert '%s'",
 		rule.ObjectMeta.Name,
 		alert.Name(),
 	)
-	if rule.Spec.Conditions != nil && len(rule.Spec.Conditions) > 0 {
-		for i := 0; i < len(rule.Spec.Conditions); i++ {
-			if !h.checkCondition(&rule.Spec.Conditions[i], alert) {
-				return false
+	matches, err = h.checkMap(alert.Labels, rule.Labels)
+	if !matches || err != nil {
+		return
+	}
+	matches, err = h.checkMap(alert.Annotations, rule.Annotations)
+	if !matches || err != nil {
+		return
+	}
+	return
+}
+
+func (h *Healer) checkMap(values, patterns map[string]string) (result bool, err error) {
+	if len(patterns) > 0 {
+		if len(values) == 0 {
+			return
+		}
+		for key, pattern := range patterns {
+			value, present := values[key]
+			if !present {
+				return
+			}
+			var matches bool
+			matches, err = regexp.MatchString(pattern, value)
+			if !matches || err != nil {
+				return
 			}
 		}
 	}
-	return true
+	result = true
+	return
 }
 
-func (h *Healer) checkCondition(condition *monitoring.HealingCondition, alert *alertmanager.Alert) bool {
-	matched, err := regexp.MatchString(condition.Alert, alert.Name())
-	if err != nil {
-		glog.Errorf(
-			"Error while checking if alert name '%s' matches pattern '%s': %s",
-			alert.Name(),
-			condition.Alert,
-			err.Error(),
-		)
-		matched = false
-	}
-	return matched
-}
+func (h *Healer) runRule(rule *monitoring.HealingRule, alert *alertmanager.Alert) error {
+	// Send the name of the rule to the log:
+	glog.Infof(
+		"Running rule '%s' for alert '%s'",
+		rule.ObjectMeta.Name,
+		alert.Name(),
+	)
 
-func (h *Healer) runActions(rule *monitoring.HealingRule, alert *alertmanager.Alert) error {
-	if rule.Spec.Actions != nil && len(rule.Spec.Actions) > 0 {
-		glog.Infof(
-			"Running actions of healing rule '%s' for alert '%s'",
-			rule.ObjectMeta.Name,
-			alert.Name(),
-		)
-		for i := 0; i < len(rule.Spec.Actions); i++ {
-			err := h.runAction(rule, &rule.Spec.Actions[i], alert)
-			if err != nil {
-				return err
-			}
-		}
-	} else {
-		glog.Warningf(
-			"Healing rule '%s' has no actions, will have no effect on alert '%s'",
-			rule.ObjectMeta.Name,
-			alert.Name(),
-		)
-	}
-
-	return nil
-}
-
-func (h *Healer) runAction(rule *monitoring.HealingRule, action *monitoring.HealingAction, alert *alertmanager.Alert) error {
-	// Make a copy of the action to ensure that the original, which is stored in the rules cache, it
-	// isn't modified during the rest of the process:
-	action = action.DeepCopy()
-
-	// Remove the template configuration from the copy, as we don't want to process the delimiters
-	// themselves as templates, would generate errors.
-	var left, right string
-	if action.Delimiters != nil {
-		left = action.Delimiters.Left
-		right = action.Delimiters.Right
-	}
-	action.Delimiters = nil
-
-	// Process the templates inside the the action:
+	// Prepare the template to process the action:
 	template, err := NewObjectTemplateBuilder().
-		Delimiters(left, right).
 		Variable("alert", ".").
 		Variable("labels", ".Labels").
 		Variable("annotations", ".Annotations").
@@ -198,16 +183,22 @@ func (h *Healer) runAction(rule *monitoring.HealingRule, action *monitoring.Heal
 	if err != nil {
 		return err
 	}
-	err = template.Process(action, alert)
-	if err != nil {
-		return err
-	}
 
 	// Decide which kind of action to run, and run it:
-	if action.AWXJob != nil {
-		return h.runAWXJob(rule, action.AWXJob, alert)
-	} else if action.BatchJob != nil {
-		return h.runBatchJob(rule, action.BatchJob, alert)
+	if rule.AWXJob != nil {
+		action := rule.AWXJob.DeepCopy()
+		err = template.Process(action, alert)
+		if err != nil {
+			return err
+		}
+		return h.runAWXJob(rule, action, alert)
+	} else if rule.BatchJob != nil {
+		action := rule.BatchJob.DeepCopy()
+		err = template.Process(action, alert)
+		if err != nil {
+			return err
+		}
+		return h.runBatchJob(rule, action, alert)
 	} else {
 		glog.Warningf(
 			"There are no action details, rule '%s' will have no effect on alert '%s'",

@@ -34,6 +34,7 @@ import (
 var (
 	kubeAddress string
 	kubeConfig  string
+	configFile  string
 )
 
 func main() {
@@ -53,6 +54,12 @@ func main() {
 		"",
 		"The address of the Kubernetes API server. Overrides any value in the Kubernetes "+
 			"configuration file. Only required when running outside of a cluster.",
+	)
+	flag.StringVar(
+		&configFile,
+		"config-file",
+		"autoheal.yml",
+		"The location of the configuration file.",
 	)
 
 	// Parse the command line:
@@ -96,6 +103,7 @@ func main() {
 
 	// Build the healer:
 	healer, err := NewHealerBuilder().
+		ConfigFile(configFile).
 		KubernetesClient(k8sClient).
 		Build()
 	if err != nil {

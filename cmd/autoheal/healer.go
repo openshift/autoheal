@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"time"
@@ -28,16 +29,21 @@ import (
 	"golang.org/x/sync/syncmap"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/util/workqueue"
 
 	"github.com/openshift/autoheal/pkg/alertmanager"
+	"github.com/openshift/autoheal/pkg/config"
 )
 
 // HealerBuilder is used to create new healers.
 //
 type HealerBuilder struct {
-	// Clients.
+	// Configuration files.
+	configFiles []string
+
+	// Kubernetes client.
 	k8sClient kubernetes.Interface
 }
 
@@ -45,7 +51,10 @@ type HealerBuilder struct {
 // Prometheus configuration and to start or reload it when there are changes.
 //
 type Healer struct {
-	// Client.
+	// The configuration.
+	config *config.Config
+
+	// Kubernetes client.
 	k8sClient kubernetes.Interface
 
 	// The current set of healing rules.
@@ -64,6 +73,13 @@ func NewHealerBuilder() *HealerBuilder {
 	return b
 }
 
+// ConfigFile adds one configuration file.
+//
+func (b *HealerBuilder) ConfigFile(path string) *HealerBuilder {
+	b.configFiles = append(b.configFiles, path)
+	return b
+}
+
 // KubernetesClient sets the Kubernetes client that will be used by the healer.
 //
 func (b *HealerBuilder) KubernetesClient(client kubernetes.Interface) *HealerBuilder {
@@ -74,11 +90,27 @@ func (b *HealerBuilder) KubernetesClient(client kubernetes.Interface) *HealerBui
 // Build creates the healer using the configuration stored in the builder.
 //
 func (b *HealerBuilder) Build() (h *Healer, err error) {
+	// Load the configuration files:
+	if len(b.configFiles) == 0 {
+		err = fmt.Errorf("No configuration file has been provided")
+		return
+	}
+	config, err := config.NewLoader().
+		Client(b.k8sClient).
+		Files(b.configFiles).
+		Load()
+	if err != nil {
+		return
+	}
+
+	// Send to the log a summary of the configuration:
+	glog.Infof("AWX user is '%s'", config.AWX().User())
+	glog.Infof("AWX project is '%s'", config.AWX().Project())
+
 	// Allocate the healer:
 	h = new(Healer)
-
-	// Save the references to the clients:
 	h.k8sClient = b.k8sClient
+	h.config = config
 
 	// Initialize the map of rules:
 	h.rulesCache = new(syncmap.Map)
@@ -101,6 +133,21 @@ func (h *Healer) Run(stopCh <-chan struct{}) error {
 	go wait.Until(h.runRulesWorker, time.Second, stopCh)
 	go wait.Until(h.runAlertsWorker, time.Second, stopCh)
 	glog.Info("Workers started")
+
+	// For each rule inside the configuration create a change and add it to the queue:
+	rules := h.config.Rules()
+	if len(rules) > 0 {
+		for _, rule := range rules {
+			change := &RuleChange{
+				Type: watch.Added,
+				Rule: rule,
+			}
+			h.rulesQueue.Add(change)
+		}
+		glog.Infof("Loaded %d healing rules from the configuration", len(rules))
+	} else {
+		glog.Warningf("There are no healing rules in the configuration")
+	}
 
 	// Start the web server:
 	http.HandleFunc("/", h.handleRequest)

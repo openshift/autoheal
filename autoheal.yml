@@ -1,0 +1,105 @@
+#
+# Copyright (c) 2018 Red Hat, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+# This is an example of the configuration file used by the auto-heal service.
+
+#
+# This section contains the details needed to connect to the AWX or Ansible
+# Tower server that will execute the Ansible playbooks.
+#
+awx:
+  #
+  # The URL of the AWX API endpoint, including the `/api` suffix, but not the
+  # `/v1` or `/v2` suffixes.
+  #
+  address: https://my-awx.example.com/api
+
+  #
+  # The URL of the proxy server used to connect to the AWX API. If not present
+  # or empty then no proxy server will be used.
+  #
+  proxy: http://my-proxy.example.com:3128
+
+  #
+  # Reference to the Kubernetes secret that contains the user name and password
+  # to use to connect to the AWX API.
+  #
+  credentialsRef:
+    namespace: my-namespace
+    name: my-awx-credentials
+
+  #
+  # Reference to the Kubernetes secret that contains the trusted CA certificates
+  # used to verify the TLS certificate presented by the AWX server. If not
+  # present or empty then the global system trusted certificates will be used.
+  #
+  tlsRef:
+    namespace: my-namespace
+    name: my-awx-tls
+
+  #
+  # The name of the AWX project that contains the auto-heal job templates.
+  #
+  project: "My project"
+
+#
+# This section contains the healing rules.
+#
+rules:
+
+#
+# This rule runs an the `Start Node` AWX job when the `NodeDown` alert
+# is fired. The playbook that handles this alert is expected to take the
+# name of the node from the `node` variable, so we need to translate the
+# `instance` label into the `node` variable passed in the `extraVars`.
+#
+- metadata:
+    name: start-node
+  labels:
+    alertname: "NodeDown"
+  awxJob:
+    template: "Start node"
+    extraVars: |-
+      {
+        "node": "{{ $labels.instance }}"
+      }
+
+#
+# This rule runs a batch job that uses Python to say hello when the
+# `NewFriend` alert is fired. The alert is expected to have a `name`
+# label containing the name of the new friend.
+#
+- metadata:
+    name: say-hello
+  labels:
+    alertname: "NewFriend"
+  batchJob:
+    apiVersion: batch/v1
+    kind: Job
+    metadata:
+      namespace: default
+      name: hello
+    spec:
+      template:
+        spec:
+          containers:
+          - name: python
+            image: python
+            command:
+            - python
+            - -c
+            - print("Hello {{ $labels.name }}!")
+          restartPolicy: Never
