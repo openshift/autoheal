@@ -3,6 +3,10 @@
   revision = "23def4e6c14b4da8ac2ed8007337bc5eb5007998"
 
 [[constraint]]
+  name = "github.com/prometheus/client_golang"
+  version = "0.8.0"
+
+[[constraint]]
   name = "k8s.io/api"
   version = "kubernetes-1.9.2"
 
