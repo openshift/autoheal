@@ -24,3 +24,8 @@
 [[override]]
   name = "k8s.io/code-generator"
   version = "kubernetes-1.9.2"
+
+[prune]
+  go-tests = true
+  non-go = true
+  unused-packages = true
