@@ -3,6 +3,7 @@
 # Targets (see each target for more information):
 #   all: Build code.
 #   build: Build code.
+#   vendor: Populate the `vendor` directory.
 #   check: Run verify, build, unit tests and cmd tests.
 #   test: Run all tests.
 #   run: Run all-in-one server
@@ -37,9 +38,16 @@ JUNIT_REPORT ?= true
 #   make
 #   make all
 #   make all WHAT=cmd/oc GOFLAGS=-v
-all build:
+all build: vendor
 	hack/build-go.sh $(WHAT) $(GOFLAGS)
 .PHONY: all build
+
+# Populate the vendor directory according to the `Gopkg.lock` directory.
+#
+# Example:
+#   make vendor
+vendor: Gopkg.lock
+	dep ensure -v --vendor-only
 
 # Run core verification and all self contained tests.
 #
@@ -93,6 +101,7 @@ test-unit:
 #   make clean
 clean:
 	rm -rf $(OUT_DIR)
+	rm -rf vendor
 .PHONY: clean
 
 # Build the cross compiled release binaries
