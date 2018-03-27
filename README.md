@@ -7,8 +7,8 @@ root cause.
 ## Configuration
 
 Most of the configuration of the auto-heal service is kept in a YAML
-configuration file.  The name of the configuration file is specified using the
-`-config-file` command line option. If this option isn't explicitly given then
+configuration file. The name of the configuration file is specified using the
+`--config-file` command line option. If this option isn't explicitly given then
 the service will try to load the `autoheal.yml` file from the current working
 directory.
 
@@ -16,7 +16,7 @@ In addition to the configuration file the auto-heal service also uses command
 line options to configure the connection to the Kubernetes API and the log
 level. Use the `-h` option to get a complete list of these command line options.
 
-The `-kubeconfig` command line option is used to specify the location of the
+The `--kubeconfig` command line option is used to specify the location of the
 Kubernetes client configuration file. When running outside of a Kubernetes
 cluster the auto-heal service will use `$HOME/.kube/config` by default, the same
 used by the `kubectl` command. When running inside a Kubernetes cluster it will
@@ -24,14 +24,14 @@ use the configuration that Kubernetes mounts automatically in the pod file
 system. So in most cases this command line option won't have to be explicitly
 included.
 
-The `-alsologtostderr` option is very convenient when running the auto-heal
+The `--logtostderr` option is very convenient when running the auto-heal
 service, both in development and production environments.
 
 Assuming that you want to have your own `my.yml` configuration file a typical
 command line will be the following:
 
 ```bash
-$ autoheal -config-file my.yml -alsologtostderr
+$ autoheal server --config-file=my.yml --logtostderr
 ```
 
 See the `autoheal.yml` file for a complete example.
