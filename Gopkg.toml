@@ -1,3 +1,18 @@
+#
+# This is intended to tell `dep` to not scan for dependencies the files inside
+# the `tools` directory, as those aren't really part of this project, but copied
+# from the `openshift/release` tool project, as described here:
+#
+#   https://github.com/openshift/release/tree/master/tools/hack/golang
+#
+# Note that this works, but it is taking advantage of the fact that `dep`
+# assumes that there is a direct relationship between the name of the directory
+# and the import path, which is not always true. For example, the import path of
+# the `junitreport` project is `github.com/openshift/origin/tools/junitreport`
+# and not `github.com/openshift/autoheal/tools`.
+#
+ignored = ["github.com/openshift/autoheal/tools*"]
+
 [[constraint]]
   name = "github.com/golang/glog"
   revision = "23def4e6c14b4da8ac2ed8007337bc5eb5007998"
