@@ -152,7 +152,7 @@ func (h *Healer) Run(stopCh <-chan struct{}) error {
 
 	// Start the web server:
 	http.Handle("/metrics", promhttp.Handler())
-	http.HandleFunc("/", h.handleRequest)
+	http.HandleFunc("/alerts", h.handleRequest)
 
 	server := &http.Server{Addr: ":9099"}
 	go server.ListenAndServe()

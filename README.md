@@ -184,6 +184,25 @@ awxJob:
     }
 ```
 
+## Testing
+
+To run the automated tests of the project run this command:
+
+```
+$ make check
+```
+
+To manually test the service, without having to have a running Prometheus alert
+manager that generates the alert notifications, you can use the `*-alert.json`
+files that are inside the `manifests` directory. For example, to simulate the
+`NodeDown` alert start the server and then use [curl](https://curl.haxx.se) to
+send the alert notification:
+
+```
+$ autoheal server --config-file=my.yml --logtostderr
+$ curl --data @manifests/node-down-alert.json http://localhost:9099/alerts
+```
+
 ## Building
 
 To build the binary run this command:
