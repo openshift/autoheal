@@ -104,7 +104,7 @@ templates that will be used to run the playbooks.
 
 The second important section of the configuration file is `rules`. It contains
 the list of _healing rules_ used by the auto-heal service to decide which action
-to for each received alert. For example:
+to run for each received alert. For example:
 
 ```yaml
 rules:
@@ -195,5 +195,5 @@ $ make
 To build the RPM and the images, run this command:
 
 ```
-make build-images
+$ make build-images
 ```
