@@ -22,12 +22,9 @@
   name = "golang.org/x/sync"
   branch = "master"
 
-# This isn't a dependency of the code, but of the build process, as we need the
-# code generator to generate the client code for our custom resource
-# definitions.
-[[override]]
-  name = "k8s.io/code-generator"
-  version = "kubernetes-1.9.2"
+[[constraint]]
+  name = "github.com/ghodss/yaml"
+  branch = "master"
 
 [prune]
   go-tests = true

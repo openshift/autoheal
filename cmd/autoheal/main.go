@@ -20,7 +20,6 @@ import (
 	"flag"
 	"os"
 	"path/filepath"
-	"time"
 
 	"github.com/golang/glog"
 	"k8s.io/client-go/kubernetes"
@@ -28,8 +27,6 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/homedir"
 
-	"github.com/openshift/autoheal/pkg/client/informers"
-	"github.com/openshift/autoheal/pkg/client/openshift"
 	"github.com/openshift/autoheal/pkg/signals"
 )
 
@@ -37,6 +34,7 @@ import (
 var (
 	kubeAddress string
 	kubeConfig  string
+	configFile  string
 )
 
 func main() {
@@ -56,6 +54,12 @@ func main() {
 		"",
 		"The address of the Kubernetes API server. Overrides any value in the Kubernetes "+
 			"configuration file. Only required when running outside of a cluster.",
+	)
+	flag.StringVar(
+		&configFile,
+		"config-file",
+		"autoheal.yml",
+		"The location of the configuration file.",
 	)
 
 	// Parse the command line:
@@ -97,27 +101,14 @@ func main() {
 		glog.Fatalf("Error building Kubernets API client: %s", err.Error())
 	}
 
-	// Create the OpenShift API client:
-	osClient, err := openshift.NewForConfig(config)
-	if err != nil {
-		glog.Fatalf("Error building OpenShift API client: %s", err.Error())
-	}
-
-	// Create an informer factory that will create informers that sync every 5 minutes:
-	informerFactory := informers.NewSharedInformerFactory(osClient, 5*time.Minute)
-
 	// Build the healer:
 	healer, err := NewHealerBuilder().
+		ConfigFile(configFile).
 		KubernetesClient(k8sClient).
-		OpenShiftClient(osClient).
-		InformerFactory(informerFactory).
 		Build()
 	if err != nil {
 		glog.Fatalf("Error building healer: %s", err.Error())
 	}
-
-	// Start the informer factory:
-	go informerFactory.Start(stopCh)
 
 	// Run the healer:
 	if err = healer.Run(stopCh); err != nil {

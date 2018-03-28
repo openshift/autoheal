@@ -45,6 +45,8 @@ type ObjectTemplateBuilder struct {
 //
 func NewObjectTemplateBuilder() *ObjectTemplateBuilder {
 	b := new(ObjectTemplateBuilder)
+	b.right = "}}"
+	b.left = "{{"
 	return b
 }
 
