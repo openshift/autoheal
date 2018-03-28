@@ -1,3 +1,5 @@
+#!/bin/bash -ex
+
 #
 # Copyright (c) 2018 Red Hat, Inc.
 #
@@ -14,7 +16,18 @@
 # limitations under the License.
 #
 
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: autoheal
+# This script uses the auto-heal OpenShift template to create an instance with
+# minimal configuration.
+
+oc process \
+--filename=template.yml \
+--param=AWX_ADDRESS="https://my-awx.example.com/api" \
+--param=AWX_USER="$(echo -n 'autoheal' | base64 --wrap=0)" \
+--param=AWX_PASSWORD="$(echo -n 'redhat123' | base64 --wrap=0)" \
+| \
+oc create --filename=-
+
+# Add a line like this if you have a `ca.crt` file containing the CA
+# certificates needed to connect to the AWX server:
+#
+# --param=AWX_CA="$(base64 --wrap=0 ca.crt)" \
