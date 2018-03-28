@@ -17,6 +17,8 @@ limitations under the License.
 package main
 
 import (
+	"fmt"
+
 	"github.com/golang/glog"
 
 	alertmanager "github.com/openshift/autoheal/pkg/alertmanager"
@@ -62,7 +64,11 @@ func (h *Healer) runAWXJob(rule *monitoring.HealingRule, action *monitoring.AWXJ
 		return err
 	}
 	if templatesResponse.Count() == 0 {
-		return err
+		return fmt.Errorf(
+			"Template '%s' not found in project '%s'",
+			awxTemplate,
+			awxProject,
+		)
 	}
 
 	// Launch the jobs:
