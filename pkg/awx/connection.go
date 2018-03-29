@@ -195,6 +195,9 @@ func (c *Connection) getToken() error {
 	if err != nil {
 		return err
 	}
+	if len(response.Token) == 0 {
+		return fmt.Errorf("Error obtaining auth token")
+	}
 	c.token = response.Token
 	return nil
 }
