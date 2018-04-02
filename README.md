@@ -184,25 +184,6 @@ awxJob:
     }
 ```
 
-## Testing
-
-To run the automated tests of the project run this command:
-
-```
-$ make check
-```
-
-To manually test the service, without having to have a running Prometheus alert
-manager that generates the alert notifications, you can use the `*-alert.json`
-files that are inside the `manifests` directory. For example, to simulate the
-`NodeDown` alert start the server and then use [curl](https://curl.haxx.se) to
-send the alert notification:
-
-```
-$ autoheal server --config-file=my.yml --logtostderr
-$ curl --data @manifests/node-down-alert.json http://localhost:9099/alerts
-```
-
 ## Building
 
 To build the binary run this command:
@@ -216,3 +197,29 @@ To build the RPM and the images, run this command:
 ```
 $ make build-images
 ```
+
+## Testing
+
+To run the automated tests of the project run this command:
+
+```
+$ make check
+```
+
+To manually test the service, without having to have a running Prometheus alert
+manager that generates the alert notifications, you can use the `*-alert.json`
+files that are inside the `examples` directory. For example, to simulate the
+`NodeDown` alert start the server and then use [curl](https://curl.haxx.se) to
+send the alert notification:
+
+```
+$ autoheal server --config-file=my.yml --logtostderr
+$ curl --data @examples/node-down-alert.json http://localhost:9099/alerts
+```
+
+# Installing
+
+To install the service to an _OpenShift_ cluster use the template contained in
+the `template.yml` file. This template requires at the very minimum the address
+and the credentials to connect to the AWX or Ansible Tower server. See the
+`template.sh` script for an example of how to use it.

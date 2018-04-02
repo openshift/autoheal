@@ -1,0 +1,185 @@
+#
+# Copyright (c) 2018 Red Hat, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+# This file contains an OpenShift template that creates all the objects needed
+# for a working instance of the auto-heal service. See the `template.sh` file
+# for an example of how to use it.
+
+apiVersion: v1
+kind: Template
+metadata:
+  name: autoheal-template
+  annotations:
+    description: "Auto-heal service"
+    tags: "autoheal"
+
+parameters:
+- name: NAME
+  description: |-
+    The name of the auto-heal service. Will also be used as a prefix for the
+    names of secrets and other objects.
+  value: autoheal
+- name: NAMESPACE
+  description: |-
+    The namespace where the auto-heal service will be created.
+  value: openshift-monitoring
+- name: AWX_ADDRESS
+  description: |-
+    The URL of the AWX API endpoint, including the `/api` suffix, but not the
+    `/v1` or `/v2` suffixes. For example `https://my-awx.example.com/api`.
+- name: AWX_PROXY
+  description: |-
+    The URL of the proxy server used to connect to the AWX API. If not present
+    or empty then no proxy server will be used. For example
+    `http://my-proxy.example.com:3128`.
+- name: AWX_USER
+  description: |-
+    The name of the user that will be used to connect to the AWX API. The value
+    must be encoded using Base64.
+- name: AWX_PASSWORD
+  description: |-
+    The password of the user that will be used to connect to the AWX API. The
+    value must be encoded using Base64.
+- name: AWX_CA
+  description: |-
+    The trusted CA certificates used to verify the TLS certificate presented by
+    the AWX server. If not present or empty then the global system trusted
+    certificates will be used. The value must be encoded using Base64.
+- name: AWX_PROJECT
+  description: |-
+    The name of the AWX project that contains the job templates that the
+    auto-heal service will use to respond to alerts.
+  value: "Auto-heal"
+
+objects:
+
+- apiVersion: v1
+  kind: ServiceAccount
+  metadata:
+    namespace: ${NAMESPACE}
+    name: ${NAME}
+
+- apiVersion: v1
+  kind: Role
+  metadata:
+    namespace: ${NAMESPACE}
+    name: ${NAME}
+  rules:
+  - apiGroups:
+    - ""
+    resources:
+    - secrets
+    resourceNames:
+    - ${NAME}-awx-credentials
+    - ${NAME}-awx-tls
+    verbs:
+    - get
+
+- apiVersion: v1
+  kind: RoleBinding
+  metadata:
+    namespace: ${NAMESPACE}
+    name: ${NAME}
+  roleRef:
+    namespace: ${NAMESPACE}
+    name: ${NAME}
+  subjects:
+  - kind: ServiceAccount
+    name: ${NAME}
+  userNames:
+  - system:serviceaccount:${NAMESPACE}:${NAME}
+
+- apiVersion: v1
+  kind: Secret
+  metadata:
+    namespace: ${NAMESPACE}
+    name: ${NAME}-awx-credentials
+  data:
+    username: ${AWX_USER}
+    password: ${AWX_PASSWORD}
+
+- apiVersion: v1
+  kind: Secret
+  metadata:
+    namespace: ${NAMESPACE}
+    name: ${NAME}-awx-tls
+  data:
+    ca.crt: ${AWX_CA}
+
+- apiVersion: v1
+  kind: ConfigMap
+  metadata:
+    namespace: ${NAMESPACE}
+    name: ${NAME}-config
+  data:
+    autoheal.yml: |-
+      awx:
+        address: ${AWX_ADDRESS}
+        proxy: ${AWX_PROXY}
+        credentialsRef:
+          namespace: ${NAMESPACE}
+          name: ${NAME}-awx-credentials
+        tlsRef:
+          namespace: ${NAMESPACE}
+          name: ${NAME}-awx-tls
+        project: ${AWX_PROJECT}
+
+- apiVersion: apps/v1beta1
+  kind: Deployment
+  metadata:
+    namespace: ${NAMESPACE}
+    name: ${NAME}
+  spec:
+    selector:
+      matchLabels:
+        app: ${NAME}
+    replicas: 1
+    template:
+      metadata:
+        labels:
+          app: ${NAME}
+      spec:
+        serviceAccountName: ${NAME}
+        volumes:
+        - name: config
+          configMap:
+            name: ${NAME}-config
+        containers:
+        - name: service
+          image: openshift/origin-autoheal:latest
+          imagePullPolicy: IfNotPresent
+          volumeMounts:
+          - name: config
+            mountPath: /etc/autoheal
+          command:
+          - /usr/bin/autoheal
+          args:
+          - server
+          - --config-file=/etc/autoheal/autoheal.yml
+          - --logtostderr
+
+- kind: Service
+  metadata:
+    namespace: ${NAMESPACE}
+    name: ${NAME}
+  spec:
+    selector:
+      app: ${NAME}
+    ports:
+    - name: autoheal
+      protocol: TCP
+      port: 9099
+      targetPort: 9099
