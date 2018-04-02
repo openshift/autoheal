@@ -41,6 +41,7 @@ type ConnectionBuilder struct {
 	password string
 	agent    string
 	token    string
+	bearer   string
 	insecure bool
 }
 
@@ -51,7 +52,9 @@ type Connection struct {
 	password string
 	agent    string
 	version  string
-	token    string
+	// AWX had two implementations for authentication tokens
+	token  string // using the /authtoken endpoint, used in tower < 3.3
+	bearer string // an OAuth2 implementation, used since tower 3.3
 
 	// The underlying HTTP client:
 	client *http.Client
@@ -101,6 +104,11 @@ func (b *ConnectionBuilder) Token(token string) *ConnectionBuilder {
 	return b
 }
 
+func (b *ConnectionBuilder) Bearer(bearer string) *ConnectionBuilder {
+	b.bearer = bearer
+	return b
+}
+
 func (b *ConnectionBuilder) Insecure(insecure bool) *ConnectionBuilder {
 	b.insecure = insecure
 	return b
@@ -128,12 +136,14 @@ func (b *ConnectionBuilder) Build() (c *Connection, err error) {
 	}
 
 	// Check the credentials:
-	if b.username != "" && b.token != "" {
-		err = fmt.Errorf("User name and token are mutually exclusive")
-		return
+	authArgs := 0
+	for _, arg := range [3]string{b.username, b.token, b.bearer} {
+		if arg != "" {
+			authArgs++
+		}
 	}
-	if b.username == "" && b.token == "" {
-		err = fmt.Errorf("Either user name or token must be provided")
+	if authArgs != 1 {
+		err = fmt.Errorf("Exactly one of the following is required: username, token or bearer")
 		return
 	}
 
@@ -178,7 +188,7 @@ func (c *Connection) Close() {
 // new onw to the server.
 //
 func (c *Connection) ensureToken() error {
-	if c.token != "" {
+	if c.token != "" || c.bearer != "" {
 		return nil
 	}
 	return c.getToken()
@@ -187,6 +197,20 @@ func (c *Connection) ensureToken() error {
 // getToken requests a new authentication token.
 //
 func (c *Connection) getToken() error {
+	err := c.getAuthToken()
+	if err != nil {
+		if glog.V(2) {
+			glog.Warningf("Failed to aquire authtoken '%s', attempting PAT", err)
+		}
+		err := c.getPATToken()
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (c *Connection) getAuthToken() error {
 	var request data.AuthTokenPostRequest
 	var response data.AuthTokenPostResponse
 	request.Username = c.username
@@ -199,6 +223,24 @@ func (c *Connection) getToken() error {
 		return fmt.Errorf("Error obtaining auth token")
 	}
 	c.token = response.Token
+	return nil
+}
+
+func (c *Connection) getPATToken() error {
+	var request data.PATPostRequest
+	var response data.PATPostResponse
+	request.Description = "AWX Go Client"
+	request.Scope = "write"
+	err := c.post(
+		fmt.Sprintf("users/%s/personal_tokens", c.username),
+		nil,
+		&request,
+		&response,
+	)
+	if err != nil {
+		return err
+	}
+	c.bearer = response.Token
 	return nil
 }
 
@@ -371,6 +413,10 @@ func (c *Connection) setAgent(request *http.Request) {
 func (c *Connection) setCredentials(request *http.Request) {
 	if c.token != "" {
 		request.Header.Set("Authorization", "Token "+c.token)
+	} else if c.bearer != "" {
+		request.Header.Set("Authorization", "Bearer "+c.bearer)
+	} else if c.username != "" {
+		request.SetBasicAuth(c.username, c.password)
 	}
 }
 
