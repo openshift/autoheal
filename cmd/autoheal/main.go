@@ -37,6 +37,12 @@ func init() {
 }
 
 func main() {
+	// This is needed to make `glog` believe that the flags have already been parsed, otherwise
+	// every log messages is prefixed by an error message stating the the flags haven't been
+	// parsed.
+	flag.CommandLine.Parse([]string{})
+
+	// Execute the root command:
 	rootCmd.SetArgs(os.Args[1:])
 	rootCmd.Execute()
 }
