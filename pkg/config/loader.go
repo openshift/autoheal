@@ -25,6 +25,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/ghodss/yaml"
 	"github.com/golang/glog"
@@ -87,9 +88,12 @@ func (l *Loader) Files(files []string) *Loader {
 // Load loads the configuration files and returns the resulting configuration object.
 //
 func (l *Loader) Load() (config *Config, err error) {
-	// Create an empty configuration:
+	// Create an default configuration:
 	l.config = &Config{
 		awx: &AWXConfig{},
+		throttling: &ThrottlingConfig{
+			interval: 1 * time.Hour,
+		},
 	}
 
 	// Merge the contents of the files into the empty configuration:
@@ -175,6 +179,12 @@ func (l *Loader) mergeFile(file string) error {
 			return err
 		}
 	}
+	if decoded.Throttling != nil {
+		err = l.mergeThrottling(decoded.Throttling)
+		if err != nil {
+			return err
+		}
+	}
 	if decoded.Rules != nil {
 		err = l.mergeRules(decoded.Rules)
 		if err != nil {
@@ -218,6 +228,17 @@ func (l *Loader) mergeAWX(decoded *data.AWXConfig) error {
 		l.config.awx.project = decoded.Project
 	}
 
+	return nil
+}
+
+func (l *Loader) mergeThrottling(decoded *data.ThrottlingConfig) error {
+	if decoded.Interval != "" {
+		interval, err := time.ParseDuration(decoded.Interval)
+		if err != nil {
+			return err
+		}
+		l.config.throttling.interval = interval
+	}
 	return nil
 }
 

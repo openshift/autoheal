@@ -19,14 +19,24 @@ limitations under the License.
 package config
 
 import (
+	"time"
+
 	monitoring "github.com/openshift/autoheal/pkg/apis/monitoring/v1alpha1"
 )
 
 // Config is a read only view of the configuration of the auto-heal service.
 //
 type Config struct {
-	awx   *AWXConfig
-	rules []*monitoring.HealingRule
+	awx        *AWXConfig
+	throttling *ThrottlingConfig
+	rules      []*monitoring.HealingRule
+}
+
+// ThrottlingConfig is a read only view of the section of the configuration that describes how to
+// throttle the execution of healing rules.
+//
+type ThrottlingConfig struct {
+	interval time.Duration
 }
 
 // AWX is a read only view of section of the configuration of the auto-heal service that describes
@@ -99,6 +109,20 @@ func (c *AWXConfig) Project() string {
 //
 func (c *AWXConfig) Insecure() bool {
 	return c.insecure
+}
+
+// Throttling returns a read only view of the section of the configuration that describes how to
+// throttle the execution of healing rules.
+//
+func (c *Config) Throttling() *ThrottlingConfig {
+	return c.throttling
+}
+
+// Interval returns the throttling interval for the execution of the actions defined in the healing
+// rules.
+//
+func (t *ThrottlingConfig) Interval() time.Duration {
+	return t.interval
 }
 
 // Rules returns the list of healing rules defined in the configuration.

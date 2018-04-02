@@ -31,6 +31,9 @@ type Config struct {
 	// AWX contains the details to connect to the default AWX server.
 	AWX *AWXConfig `json:"awx,omitempty"`
 
+	// Throttling contains the healing rule execution throttling details.
+	Throttling *ThrottlingConfig
+
 	// The list of healing rules.
 	Rules []*monitoring.HealingRule `json:"rules,omitempty"`
 }
@@ -58,4 +61,11 @@ type AWXConfig struct {
 
 	// Project is the name of the AWX project that contains the job templates.
 	Project string `json:"project,omitempty"`
+}
+
+// ThrottlingConfig is used to mardhal and unmarshal the healing rule exeuction throttling
+// configuration.
+//
+type ThrottlingConfig struct {
+	Interval string `json:"interval,omitempty"`
 }

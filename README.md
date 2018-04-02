@@ -104,6 +104,32 @@ should always be set to `false` (the default) in production environments.
 The `project` parameter is the name of the AWX project that contains the job
 templates that will be used to run the playbooks.
 
+### Throttling configuration
+
+The `throttling` section of the configuration describes how to throttle the
+execution of healing actions. This is intended to prevent _healing storms_ that
+could happen if the same alerts are send repeatedly to the service.
+
+The `interval` parameter controls the time that the service will remember an
+executed healing action. If an action is triggered more than once in the given
+interval it will be executed only the first time. The rest of the times it will
+be logged and ignored. (see `autoheal.yml` for an example.)
+
+The default interval value is one hour. Leaving the `interval` parameter 0
+will *disable* throttling altogether.
+
+Note that for throttling purposes actions are considered the same if they
+have exactly the same fields with exactly the same values *after* processing
+them as templates. For example, an action defined like this:
+
+```yaml
+awxJob:
+  template: "Restart {{ $labels.service }}"
+``
+
+Will have different values for the `template` field if the triggering alerts
+have different `service` labels.
+
 ### Healing rules configuration
 
 The second important section of the configuration file is `rules`. It contains
