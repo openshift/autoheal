@@ -260,6 +260,14 @@ func (c *Connection) rawGet(path string, query url.Values) (output []byte, err e
 	if err != nil {
 		return
 	}
+	if response.StatusCode != 200 {
+		err = fmt.Errorf(
+			"Status code '%d' returned from server: '%s'",
+			response.StatusCode,
+			response.Status,
+		)
+		return
+	}
 	body := response.Body
 	defer body.Close()
 
@@ -313,6 +321,14 @@ func (c *Connection) rawPost(path string, query url.Values, input []byte) (outpu
 	c.setAccept(request)
 	response, err := c.client.Do(request)
 	if err != nil {
+		return
+	}
+	if response.StatusCode != 200 {
+		err = fmt.Errorf(
+			"Status code '%d' returned from server: '%s'",
+			response.StatusCode,
+			response.Status,
+		)
 		return
 	}
 	body := response.Body
