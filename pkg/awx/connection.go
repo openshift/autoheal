@@ -249,9 +249,6 @@ func (c *Connection) get(path string, query url.Values, output interface{}) erro
 func (c *Connection) rawGet(path string, query url.Values) (output []byte, err error) {
 	// Send the request:
 	address := c.makeUrl(path, query)
-	if glog.V(2) {
-		glog.Infof("Sending GET request to '%s'.", address)
-	}
 	request, err := http.NewRequest(http.MethodGet, address, nil)
 	if err != nil {
 		return
@@ -259,16 +256,15 @@ func (c *Connection) rawGet(path string, query url.Values) (output []byte, err e
 	c.setAgent(request)
 	c.setCredentials(request)
 	c.setAccept(request)
+	if glog.V(2) {
+		glog.Infof("Sending GET request to '%s'.", address)
+		glog.Info("Request headers:\n")
+		for key, val := range request.Header {
+			glog.Infof("	%s: %v", key, val)
+		}
+	}
 	response, err := c.client.Do(request)
 	if err != nil {
-		return
-	}
-	if response.StatusCode != 200 {
-		err = fmt.Errorf(
-			"Status code '%d' returned from server: '%s'",
-			response.StatusCode,
-			response.Status,
-		)
 		return
 	}
 	body := response.Body
@@ -281,8 +277,20 @@ func (c *Connection) rawGet(path string, query url.Values) (output []byte, err e
 	}
 	if glog.V(2) {
 		glog.Infof("Response body:\n%s", c.indent(output))
-	}
+		glog.Info("Response headers:")
+		for key, val := range response.Header {
+			glog.Infof("	%s: %v", key, val)
+		}
 
+	}
+	if response.StatusCode > 202 {
+		err = fmt.Errorf(
+			"Status code '%d' returned from server: '%s'",
+			response.StatusCode,
+			response.Status,
+		)
+		return
+	}
 	return
 }
 
@@ -309,10 +317,6 @@ func (c *Connection) post(path string, query url.Values, input interface{}, outp
 func (c *Connection) rawPost(path string, query url.Values, input []byte) (output []byte, err error) {
 	// Post the input bytes:
 	address := c.makeUrl(path, query)
-	if glog.V(2) {
-		glog.Infof("Sending POST request to '%s'.", address)
-		glog.Infof("Request body:\n%s", c.indent(input))
-	}
 	buffer := bytes.NewBuffer(input)
 	request, err := http.NewRequest(http.MethodPost, address, buffer)
 	if err != nil {
@@ -322,16 +326,16 @@ func (c *Connection) rawPost(path string, query url.Values, input []byte) (outpu
 	c.setCredentials(request)
 	c.setContentType(request)
 	c.setAccept(request)
+	if glog.V(2) {
+		glog.Infof("Sending POST request to '%s'.", address)
+		glog.Infof("Request body:\n%s", c.indent(input))
+		glog.Infof("Request headers:")
+		for key, val := range request.Header {
+			glog.Infof("	%s: %v", key, val)
+		}
+	}
 	response, err := c.client.Do(request)
 	if err != nil {
-		return
-	}
-	if response.StatusCode != 200 {
-		err = fmt.Errorf(
-			"Status code '%d' returned from server: '%s'",
-			response.StatusCode,
-			response.Status,
-		)
 		return
 	}
 	body := response.Body
@@ -344,8 +348,19 @@ func (c *Connection) rawPost(path string, query url.Values, input []byte) (outpu
 	}
 	if glog.V(2) {
 		glog.Infof("Response body:\n%s", c.indent(output))
+		glog.Info("Response headers:")
+		for key, val := range response.Header {
+			glog.Infof("	%s: %v", key, val)
+		}
 	}
-
+	if response.StatusCode > 202 {
+		err = fmt.Errorf(
+			"Status code '%d' returned from server: '%s'",
+			response.StatusCode,
+			response.Status,
+		)
+		return
+	}
 	return
 }
 
