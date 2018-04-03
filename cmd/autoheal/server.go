@@ -17,6 +17,7 @@ limitations under the License.
 package main
 
 import (
+	"log"
 	"os"
 	"path/filepath"
 
@@ -28,6 +29,7 @@ import (
 	"k8s.io/client-go/util/homedir"
 
 	"github.com/openshift/autoheal/pkg/signals"
+	"github.com/spf13/viper"
 )
 
 // Values of the command line options:
@@ -45,6 +47,7 @@ var serverCmd = &cobra.Command{
 }
 
 func init() {
+	cobra.OnInitialize(initConfig)
 	serverFlags := serverCmd.Flags()
 	serverFlags.StringVar(
 		&serverKubeConfig,
@@ -119,5 +122,12 @@ func serverRun(cmd *cobra.Command, args []string) {
 	// Run the healer:
 	if err = healer.Run(stopCh); err != nil {
 		glog.Fatalf("Error running healer: %s", err.Error())
+	}
+}
+
+func initConfig() {
+	viper.SetConfigFile(serverConfigFile)
+	if err := viper.ReadInConfig(); err != nil {
+		log.Println("Error reading config file:", err)
 	}
 }

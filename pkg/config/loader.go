@@ -20,15 +20,14 @@ package config
 
 import (
 	"fmt"
-	"io/ioutil"
 
-	"github.com/ghodss/yaml"
 	core "k8s.io/api/core/v1"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
 	monitoring "github.com/openshift/autoheal/pkg/apis/monitoring/v1alpha1"
 	"github.com/openshift/autoheal/pkg/internal/data"
+	"github.com/spf13/viper"
 )
 
 // Loader contains the data and the methods needed to load the auto-heal service configuration.
@@ -105,16 +104,9 @@ func (l *Loader) Load() (config *Config, err error) {
 func (l *Loader) mergeFile(file string) error {
 	var err error
 
-	// Read the content of the file:
-	var content []byte
-	content, err = ioutil.ReadFile(file)
-	if err != nil {
-		return err
-	}
-
 	// Parse the YAML inside the file:
 	var decoded data.Config
-	err = yaml.Unmarshal(content, &decoded)
+	err = viper.Unmarshal(&decoded)
 	if err != nil {
 		return err
 	}
