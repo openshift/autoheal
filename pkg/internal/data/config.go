@@ -53,6 +53,9 @@ type AWXConfig struct {
 	// certificates and keys used to access the AWX API.
 	TLSRef *core.SecretReference `json:"tlsRef,omitempty"`
 
+	// Whether to use an insecure connection to connect to AWX.
+	Insecure bool `json:"insecure,omitempty"`
+
 	// Project is the name of the AWX project that contains the job templates.
 	Project string `json:"project,omitempty"`
 }

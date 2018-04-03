@@ -37,6 +37,7 @@ type AWXConfig struct {
 	proxy    string
 	user     string
 	password string
+	insecure bool
 	ca       []byte
 	project  string
 }
@@ -82,7 +83,7 @@ func (c *AWXConfig) Password() string {
 }
 
 // CA returns the PEM encoded certificates of the authorities that should be trusted when checking
-// the TLS certificate presented by the AWX server.
+// the TLS certificate presented by the AWX server. If not provided the system cert pool will be used.
 //
 func (c *AWXConfig) CA() []byte {
 	return c.ca
@@ -92,6 +93,12 @@ func (c *AWXConfig) CA() []byte {
 //
 func (c *AWXConfig) Project() string {
 	return c.project
+}
+
+// Whether to use insecure connection to connect to AWX.
+//
+func (c *AWXConfig) Insecure() bool {
+	return c.insecure
 }
 
 // Rules returns the list of healing rules defined in the configuration.

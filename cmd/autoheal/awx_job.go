@@ -34,6 +34,8 @@ func (h *Healer) runAWXJob(rule *monitoring.HealingRule, action *monitoring.AWXJ
 	awxProxy := h.config.AWX().Proxy()
 	awxUser := h.config.AWX().User()
 	awxPassword := h.config.AWX().Password()
+	awxCA := h.config.AWX().CA()
+	awxInsecure := h.config.AWX().Insecure()
 
 	// Get the name of the AWX project name from the configuration:
 	awxProject := h.config.AWX().Project()
@@ -47,7 +49,8 @@ func (h *Healer) runAWXJob(rule *monitoring.HealingRule, action *monitoring.AWXJ
 		Proxy(awxProxy).
 		Username(awxUser).
 		Password(awxPassword).
-		Insecure(true).
+		CACertificates(awxCA).
+		Insecure(awxInsecure).
 		Build()
 	if err != nil {
 		return err

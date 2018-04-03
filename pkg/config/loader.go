@@ -161,6 +161,9 @@ func (l *Loader) mergeAWX(decoded *data.AWXConfig) error {
 		}
 	}
 
+	// Merge insecure setting:
+	l.config.awx.insecure = decoded.Insecure
+
 	// Merge the project:
 	if decoded.Project != "" {
 		l.config.awx.project = decoded.Project
