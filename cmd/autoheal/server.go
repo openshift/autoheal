@@ -116,6 +116,9 @@ func serverRun(cmd *cobra.Command, args []string) {
 		glog.Fatalf("Error building healer: %s", err.Error())
 	}
 
+	// Register exported metrics:
+	healer.initExportedMetrics()
+
 	// Run the healer:
 	if err = healer.Run(stopCh); err != nil {
 		glog.Fatalf("Error running healer: %s", err.Error())

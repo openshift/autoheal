@@ -26,7 +26,6 @@ import (
 	"time"
 
 	"github.com/golang/glog"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"golang.org/x/sync/syncmap"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -151,7 +150,7 @@ func (h *Healer) Run(stopCh <-chan struct{}) error {
 	}
 
 	// Start the web server:
-	http.Handle("/metrics", promhttp.Handler())
+	http.Handle("/metrics", h.metricsHandler())
 	http.HandleFunc("/alerts", h.handleRequest)
 
 	server := &http.Server{Addr: ":9099"}
