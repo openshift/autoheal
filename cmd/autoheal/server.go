@@ -34,7 +34,7 @@ import (
 var (
 	serverKubeAddress string
 	serverKubeConfig  string
-	serverConfigFile  string
+	serverConfigFiles []string
 )
 
 var serverCmd = &cobra.Command{
@@ -60,11 +60,15 @@ func init() {
 		"The address of the Kubernetes API server. Overrides any value in the Kubernetes "+
 			"configuration file. Only required when running outside of a cluster.",
 	)
-	serverFlags.StringVar(
-		&serverConfigFile,
+	serverFlags.StringSliceVar(
+		&serverConfigFiles,
 		"config-file",
-		"autoheal.yml",
-		"The location of the configuration file.",
+		[]string{"autoheal.yml"},
+		"The location of the configuration file. Can be used multiple times to specify "+
+			"multiple configuration files or directories. They will be loaded in the "+
+			"same order that they appear in the command line. When the value is a "+
+			"directory all the files inside whose names end in .yml or .yaml will be "+
+			"loaded, in alphabetical order.",
 	)
 }
 
@@ -109,7 +113,7 @@ func serverRun(cmd *cobra.Command, args []string) {
 
 	// Build the healer:
 	healer, err := NewHealerBuilder().
-		ConfigFile(serverConfigFile).
+		ConfigFiles(serverConfigFiles).
 		KubernetesClient(k8sClient).
 		Build()
 	if err != nil {

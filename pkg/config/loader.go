@@ -21,8 +21,13 @@ package config
 import (
 	"fmt"
 	"io/ioutil"
+	"os"
+	"path/filepath"
+	"sort"
+	"strings"
 
 	"github.com/ghodss/yaml"
+	"github.com/golang/glog"
 	core "k8s.io/api/core/v1"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -89,10 +94,24 @@ func (l *Loader) Load() (config *Config, err error) {
 
 	// Merge the contents of the files into the empty configuration:
 	for _, file := range l.files {
-		err = l.mergeFile(file)
+		var info os.FileInfo
+		info, err = os.Stat(file)
 		if err != nil {
-			err = fmt.Errorf("Can't load configuration file '%s': %s", file, err)
+			err = fmt.Errorf("Can't check if '%s' is a file or a directory: %s", file, err)
 			return
+		}
+		if info.IsDir() {
+			err = l.mergeDir(file)
+			if err != nil {
+				err = fmt.Errorf("Can't load configuration directory '%s': %s", file, err)
+				return
+			}
+		} else {
+			err = l.mergeFile(file)
+			if err != nil {
+				err = fmt.Errorf("Can't load configuration file '%s': %s", file, err)
+				return
+			}
 		}
 	}
 
@@ -102,10 +121,40 @@ func (l *Loader) Load() (config *Config, err error) {
 	return
 }
 
+func (l *Loader) mergeDir(dir string) error {
+	// List the files in the directory:
+	infos, err := ioutil.ReadDir(dir)
+	if err != nil {
+		return err
+	}
+	files := make([]string, 0, len(infos))
+	for _, info := range infos {
+		if !info.IsDir() {
+			name := info.Name()
+			if strings.HasSuffix(name, ".yml") || strings.HasSuffix(name, ".yaml") {
+				file := filepath.Join(dir, name)
+				files = append(files, file)
+			}
+		}
+	}
+
+	// Load the files in alphabetical order:
+	sort.Strings(files)
+	for _, file := range files {
+		err := l.mergeFile(file)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (l *Loader) mergeFile(file string) error {
 	var err error
 
 	// Read the content of the file:
+	glog.Infof("Loading configuration from '%s'", file)
 	var content []byte
 	content, err = ioutil.ReadFile(file)
 	if err != nil {
