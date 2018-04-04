@@ -51,6 +51,13 @@ awx:
     name: my-awx-tls
 
   #
+  # Whether to use an insecure connection to the AWX server
+  # this should always be set to false in production,
+  # but can be set to true when developing. Defaults to false.
+  #
+  insecure: false
+
+  #
   # The name of the AWX project that contains the auto-heal job templates.
   #
   project: "My project"

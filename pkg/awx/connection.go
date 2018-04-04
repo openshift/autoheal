@@ -19,6 +19,7 @@ package awx
 import (
 	"bytes"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -43,6 +44,10 @@ type ConnectionBuilder struct {
 	token    string
 	bearer   string
 	insecure bool
+
+	// If cacrt is specified, the client will expect the server certificate
+	// to be signed by this CA chain. If it isn't, the client will use the host trust store.
+	cacrt []byte
 }
 
 type Connection struct {
@@ -114,6 +119,11 @@ func (b *ConnectionBuilder) Insecure(insecure bool) *ConnectionBuilder {
 	return b
 }
 
+func (b *ConnectionBuilder) CACertificates(cacrt []byte) *ConnectionBuilder {
+	b.cacrt = cacrt
+	return b
+}
+
 func (b *ConnectionBuilder) Build() (c *Connection, err error) {
 	// Check the URL:
 	if b.url == "" {
@@ -147,11 +157,27 @@ func (b *ConnectionBuilder) Build() (c *Connection, err error) {
 		return
 	}
 
+	if len(b.cacrt) > 0 && b.insecure {
+		err = fmt.Errorf("CA certificates and insecure are mutually exclusive")
+		return
+	}
+	var certStore *x509.CertPool
+	if len(b.cacrt) == 0 {
+		certStore, err = x509.SystemCertPool()
+		if err != nil {
+			return
+		}
+	} else {
+		certStore = x509.NewCertPool()
+		certStore.AppendCertsFromPEM(b.cacrt)
+	}
+
 	// Create the HTTP client:
 	client := &http.Client{
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{
 				InsecureSkipVerify: b.insecure,
+				RootCAs:            certStore,
 			},
 			Proxy: func(request *http.Request) (result *url.URL, err error) {
 				result = proxy
