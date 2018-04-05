@@ -97,6 +97,10 @@ data:
     ...
 ```
 
+The `insecure` parameter controls whether to use an insecure connection to the
+AWX server. If the connection is insecure then the TLS will not be verified. It
+should always be set to `false` (the default) in production environments.
+
 The `project` parameter is the name of the AWX project that contains the job
 templates that will be used to run the playbooks.
 
