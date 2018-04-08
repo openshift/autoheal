@@ -51,9 +51,9 @@ awx:
     name: my-awx-tls
 
   #
-  # Whether to use an insecure connection to the AWX server
-  # this should always be set to false in production,
-  # but can be set to true when developing. Defaults to false.
+  # Whether to use an insecure connection to the AWX server this should always
+  # be set to `false` in production, but can be set to `true` when developing.
+  # Defaults to `false`.
   #
   insecure: false
 
