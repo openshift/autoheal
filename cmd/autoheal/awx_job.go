@@ -82,7 +82,7 @@ func (h *Healer) runAWXJob(rule *monitoring.HealingRule, action *monitoring.AWXJ
 		alert.Name(),
 	)
 	for _, template := range templatesResponse.Results() {
-		err := h.launchAWXJob(connection, template, action)
+		err := h.launchAWXJob(connection, template, action, rule)
 		if err != nil {
 			return err
 		}
@@ -91,7 +91,12 @@ func (h *Healer) runAWXJob(rule *monitoring.HealingRule, action *monitoring.AWXJ
 	return nil
 }
 
-func (h *Healer) launchAWXJob(connection *awx.Connection, template *awx.JobTemplate, action *monitoring.AWXJobAction) error {
+func (h *Healer) launchAWXJob(
+	connection *awx.Connection,
+	template *awx.JobTemplate,
+	action *monitoring.AWXJobAction,
+	rule *monitoring.HealingRule,
+) error {
 	templateId := template.Id()
 	templateName := template.Name()
 	launchResource := connection.JobTemplates().Id(templateId).Launch()
@@ -105,5 +110,6 @@ func (h *Healer) launchAWXJob(connection *awx.Connection, template *awx.JobTempl
 		"Request to launch AWX job from template '%s' has been sent",
 		templateName,
 	)
+	h.incrementAwxActions(action, rule.ObjectMeta.Name)
 	return nil
 }
