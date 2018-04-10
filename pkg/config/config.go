@@ -43,13 +43,14 @@ type ThrottlingConfig struct {
 // how to connect to the AWX server, and how to launch jobs from templates.
 //
 type AWXConfig struct {
-	address  string
-	proxy    string
-	user     string
-	password string
-	insecure bool
-	ca       []byte
-	project  string
+	address                string
+	proxy                  string
+	user                   string
+	password               string
+	insecure               bool
+	ca                     []byte
+	project                string
+	jobStatusCheckInterval time.Duration
 }
 
 // AWX returns a read only view of the section of the configuration of the auto-heal service that
@@ -109,6 +110,12 @@ func (c *AWXConfig) Project() string {
 //
 func (c *AWXConfig) Insecure() bool {
 	return c.insecure
+}
+
+// Return the duration of how often the active AWX jobs status is checked
+//
+func (c *AWXConfig) JobStatusCheckInterval() time.Duration {
+	return c.jobStatusCheckInterval
 }
 
 // Throttling returns a read only view of the section of the configuration that describes how to

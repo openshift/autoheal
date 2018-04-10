@@ -130,6 +130,11 @@ awxJob:
 Will have different values for the `template` field if the triggering alerts
 have different `service` labels.
 
+The auto-heal service performs a periodic job status check against AWX server,
+to check the status of the active jobs that were triggered.
+The `jobStatusCheckInterval` parameter determines how often to perform this check.
+It is optional, and the defult is '5m' (every 5 minutes).
+
 ### Healing rules configuration
 
 The second important section of the configuration file is `rules`. It contains

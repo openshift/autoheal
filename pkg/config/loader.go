@@ -90,7 +90,9 @@ func (l *Loader) Files(files []string) *Loader {
 func (l *Loader) Load() (config *Config, err error) {
 	// Create an default configuration:
 	l.config = &Config{
-		awx: &AWXConfig{},
+		awx: &AWXConfig{
+			jobStatusCheckInterval: 5 * time.Minute,
+		},
 		throttling: &ThrottlingConfig{
 			interval: 1 * time.Hour,
 		},
@@ -226,6 +228,15 @@ func (l *Loader) mergeAWX(decoded *data.AWXConfig) error {
 	// Merge the project:
 	if decoded.Project != "" {
 		l.config.awx.project = decoded.Project
+	}
+
+	// Merge the jobStatusCheckInterval
+	if decoded.JobStatusCheckInterval != "" {
+		interval, err := time.ParseDuration(decoded.JobStatusCheckInterval)
+		if err != nil {
+			return err
+		}
+		l.config.awx.jobStatusCheckInterval = interval
 	}
 
 	return nil

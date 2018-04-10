@@ -100,16 +100,65 @@ func (h *Healer) launchAWXJob(
 	templateId := template.Id()
 	templateName := template.Name()
 	launchResource := connection.JobTemplates().Id(templateId).Launch()
-	_, err := launchResource.Post().
+	response, err := launchResource.Post().
 		ExtraVars(action.ExtraVars).
 		Send()
 	if err != nil {
 		return err
 	}
 	glog.Infof(
-		"Request to launch AWX job from template '%s' has been sent",
+		"Request to launch AWX job from template '%s' has been sent, job identifier is '%v'",
 		templateName,
+		response.Job,
 	)
 	h.incrementAwxActions(action, rule.ObjectMeta.Name)
+
+	// Add the job to active jobs map for tracking
+	h.activeJobs.Store(response.Job, response.Job)
+
 	return nil
+}
+
+func (h *Healer) checkAWXJobStatus(jobID int) (finished bool, err error) {
+	// Get the AWX connection details from the configuration:
+	awxAddress := h.config.AWX().Address()
+	awxProxy := h.config.AWX().Proxy()
+	awxUser := h.config.AWX().User()
+	awxPassword := h.config.AWX().Password()
+	awxCA := h.config.AWX().CA()
+	awxInsecure := h.config.AWX().Insecure()
+
+	// Create the connection to the AWX server:
+	connection, err := awx.NewConnectionBuilder().
+		Url(awxAddress).
+		Proxy(awxProxy).
+		Username(awxUser).
+		Password(awxPassword).
+		CACertificates(awxCA).
+		Insecure(awxInsecure).
+		Build()
+	if err != nil {
+		return
+	}
+	defer connection.Close()
+
+	jobsResource := connection.Jobs()
+
+	jobsResponse, err := jobsResource.Id(jobID).Get().Send()
+	if err != nil {
+		return
+	}
+
+	job := jobsResponse.Job()
+
+	glog.Infof(
+		"Job %d status: %s",
+		job.Id(),
+		job.Status(),
+	)
+
+	finished = job.IsFinished()
+	// TODO: save status as metric
+
+	return
 }

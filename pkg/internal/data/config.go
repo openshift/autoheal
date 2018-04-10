@@ -61,6 +61,9 @@ type AWXConfig struct {
 
 	// Project is the name of the AWX project that contains the job templates.
 	Project string `json:"project,omitempty"`
+
+	// JobStatusCheckInterval determines how often to check AWX active jobs status
+	JobStatusCheckInterval string `json:"jobStatusCheckInterval,omitempty"`
 }
 
 // ThrottlingConfig is used to mardhal and unmarshal the healing rule exeuction throttling
