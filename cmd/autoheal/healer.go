@@ -80,6 +80,18 @@ func (b *HealerBuilder) ConfigFile(path string) *HealerBuilder {
 	return b
 }
 
+// ConfigFiles adds one or more configuration files or directories. They will be loaded in the order
+// given. For directories all the contained files will be loaded, in alphabetical order.
+//
+func (b *HealerBuilder) ConfigFiles(paths []string) *HealerBuilder {
+	if len(paths) > 0 {
+		for _, path := range paths {
+			b.ConfigFile(path)
+		}
+	}
+	return b
+}
+
 // KubernetesClient sets the Kubernetes client that will be used by the healer.
 //
 func (b *HealerBuilder) KubernetesClient(client kubernetes.Interface) *HealerBuilder {
