@@ -35,6 +35,7 @@ import (
 
 	"github.com/openshift/autoheal/pkg/alertmanager"
 	"github.com/openshift/autoheal/pkg/config"
+	"github.com/openshift/autoheal/pkg/memory"
 )
 
 // HealerBuilder is used to create new healers.
@@ -64,6 +65,9 @@ type Healer struct {
 	// notifications from the alert manager:
 	rulesQueue  workqueue.RateLimitingInterface
 	alertsQueue workqueue.RateLimitingInterface
+
+	// Executed actions will be stored here in order to prevent repeated execution.
+	actionMemory *memory.ShortTermMemory
 }
 
 // NewHealerBuilder creates a new builder for healers.
@@ -119,10 +123,19 @@ func (b *HealerBuilder) Build() (h *Healer, err error) {
 	glog.Infof("AWX user is '%s'", config.AWX().User())
 	glog.Infof("AWX project is '%s'", config.AWX().Project())
 
+	// Create the actions memory:
+	actionMemory, err := memory.NewShortTermMemoryBuilder().
+		Duration(config.Throttling().Interval()).
+		Build()
+	if err != nil {
+		return
+	}
+
 	// Allocate the healer:
 	h = new(Healer)
 	h.k8sClient = b.k8sClient
 	h.config = config
+	h.actionMemory = actionMemory
 
 	// Initialize the map of rules:
 	h.rulesCache = new(syncmap.Map)

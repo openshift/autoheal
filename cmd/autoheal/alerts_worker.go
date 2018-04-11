@@ -17,9 +17,11 @@ limitations under the License.
 package main
 
 import (
+	"fmt"
 	"regexp"
 
 	"github.com/golang/glog"
+	batch "k8s.io/api/batch/v1"
 	"k8s.io/apimachinery/pkg/util/runtime"
 
 	alertmanager "github.com/openshift/autoheal/pkg/alertmanager"
@@ -174,7 +176,23 @@ func (h *Healer) runRule(rule *monitoring.HealingRule, alert *alertmanager.Alert
 		alert.Name(),
 	)
 
-	// Prepare the template to process the action:
+	// Make a copy of the action so that we can modify it without affecting the rule stored in the
+	// cache:
+	var action interface{}
+	if rule.AWXJob != nil {
+		action = rule.AWXJob.DeepCopy()
+	} else if rule.BatchJob != nil {
+		action = rule.BatchJob.DeepCopy()
+	} else {
+		glog.Warningf(
+			"There are no action details, rule '%s' will have no effect on alert '%s'",
+			rule.ObjectMeta.Name,
+			alert.Name(),
+		)
+		return nil
+	}
+
+	// Process the templates inside the action:
 	template, err := NewObjectTemplateBuilder().
 		Variable("alert", ".").
 		Variable("labels", ".Labels").
@@ -183,28 +201,36 @@ func (h *Healer) runRule(rule *monitoring.HealingRule, alert *alertmanager.Alert
 	if err != nil {
 		return err
 	}
+	err = template.Process(action, alert)
+	if err != nil {
+		return err
+	}
 
-	// Decide which kind of action to run, and run it:
-	if rule.AWXJob != nil {
-		action := rule.AWXJob.DeepCopy()
-		err = template.Process(action, alert)
-		if err != nil {
-			return err
-		}
-		return h.runAWXJob(rule, action, alert)
-	} else if rule.BatchJob != nil {
-		action := rule.BatchJob.DeepCopy()
-		err = template.Process(action, alert)
-		if err != nil {
-			return err
-		}
-		return h.runBatchJob(rule, action, alert)
-	} else {
-		glog.Warningf(
-			"There are no action details, rule '%s' will have no effect on alert '%s'",
+	// Discard the action if it has been executed recently:
+	if h.actionMemory.Has(action) {
+		glog.Infof(
+			"Action for rule '%s' and alert '%s' has been executed recently, it will be ignored",
 			rule.ObjectMeta.Name,
 			alert.Name(),
 		)
+		return nil
 	}
-	return nil
+
+	// Execute the action:
+	switch typed := action.(type) {
+	case *monitoring.AWXJobAction:
+		err = h.runAWXJob(rule, typed, alert)
+	case *batch.Job:
+		err = h.runBatchJob(rule, typed, alert)
+	default:
+		err = fmt.Errorf(
+			"Don't know how to execute action of type '%T'",
+			typed,
+		)
+	}
+
+	// Remember that the action was executed recently, even if the execution failed:
+	h.actionMemory.Add(action)
+
+	return err
 }

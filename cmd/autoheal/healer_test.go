@@ -19,9 +19,13 @@ package main
 import (
 	"path/filepath"
 	"testing"
+	"time"
 
 	alertmanager "github.com/openshift/autoheal/pkg/alertmanager"
 	monitoring "github.com/openshift/autoheal/pkg/apis/monitoring/v1alpha1"
+	"github.com/openshift/autoheal/pkg/memory"
+	"k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/apimachinery/pkg/watch"
 )
 
 func TestRuleWithExactLabel(t *testing.T) {
@@ -454,6 +458,98 @@ func TestEmptyRuleMatchesAlertWithAnnotation(t *testing.T) {
 		t.Error(err)
 	}
 	if !matches {
+		t.Fail()
+	}
+}
+
+func TestHealerActionMemory(t *testing.T) {
+	healer := makeHealer(t, "empty")
+	defer runtime.HandleCrash()
+
+	rule := &monitoring.HealingRule{
+		Labels: map[string]string{
+			"mylabel": "myvalue",
+		},
+		AWXJob: &monitoring.AWXJobAction{
+			Template: "test_template",
+		},
+	}
+
+	alert0 := &alertmanager.Alert{
+		Status: "firing",
+		Labels: map[string]string{
+			"mylabel": "myvalue",
+		},
+	}
+
+	alert1 := &alertmanager.Alert{
+		Status: "firing",
+		Labels: map[string]string{
+			"mylabel": "myvalue",
+		},
+	}
+
+	change := &RuleChange{
+		Type: watch.Added,
+		Rule: rule,
+	}
+
+	// Add the rule change to rulesCache
+	healer.processRuleChange(change)
+
+	// Process the two alerts matching the same rule.
+	healer.processAlert(alert0)
+	healer.processAlert(alert1)
+
+	if healer.actionMemory.Len() != 1 {
+		t.Fail()
+	}
+}
+
+func TestHealerActionMemoryDisabled(t *testing.T) {
+	healer := makeHealer(t, "empty")
+	defer runtime.HandleCrash()
+
+	// disable actionMemory.
+	duration, _ := time.ParseDuration("0")
+	healer.actionMemory, _ = memory.NewShortTermMemoryBuilder().Duration(duration).Build()
+
+	rule := &monitoring.HealingRule{
+		Labels: map[string]string{
+			"mylabel": "myvalue",
+		},
+		AWXJob: &monitoring.AWXJobAction{
+			Template: "test_template",
+		},
+	}
+
+	alert0 := &alertmanager.Alert{
+		Status: "firing",
+		Labels: map[string]string{
+			"mylabel": "myvalue",
+		},
+	}
+
+	alert1 := &alertmanager.Alert{
+		Status: "firing",
+		Labels: map[string]string{
+			"mylabel": "myvalue",
+		},
+	}
+
+	change := &RuleChange{
+		Type: watch.Added,
+		Rule: rule,
+	}
+
+	// Add the rule change to rulesCache
+	healer.processRuleChange(change)
+
+	// Process the two alerts matching the same rule.
+	healer.processAlert(alert0)
+	healer.processAlert(alert1)
+
+	if healer.actionMemory.Len() != 0 {
 		t.Fail()
 	}
 }

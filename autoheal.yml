@@ -63,6 +63,30 @@ awx:
   project: "My project"
 
 #
+# This section describes how to throttle the execution of healing rules.
+throttling:
+  #
+  # The time that the service will remember an executed healing action. If an
+  # action is triggered more than once in the given interval it will be executed
+  # only the first time. The rest of the times it will be logged and ignored.
+  #
+  # Note that for throttling purposes actions are considered the same if they
+  # have exactly the same fields with exactly the same values *after* processing
+  # them as templates.  For example, an action defined like this:
+  #
+  #   awxJob:
+  #     template: "Restart {{ $labels.service }}"
+  #
+  # Will have different values for the `template` field if the triggering alerts
+  # have different `service` labels.
+  #
+  # Interval is a duration string ,that is, a sequence of decimal numbers,
+  # each with optional fraction and a unit suffix, such as "300ms" or "2h45m".
+  # Valid time units are "ns", "us" (or "µs"), "ms", "s", "m", "h". (For more details see https://golang.org/pkg/time/#Duration)
+  #
+  interval: 1h
+
+#
 # This section contains the healing rules.
 #
 rules:
