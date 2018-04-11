@@ -125,7 +125,7 @@ them as templates. For example, an action defined like this:
 ```yaml
 awxJob:
   template: "Restart {{ $labels.service }}"
-``
+```
 
 Will have different values for the `template` field if the triggering alerts
 have different `service` labels.
