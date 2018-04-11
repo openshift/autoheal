@@ -68,6 +68,9 @@ type Healer struct {
 
 	// Executed actions will be stored here in order to prevent repeated execution.
 	actionMemory *memory.ShortTermMemory
+
+	// The AWX active jobs
+	activeJobs *syncmap.Map
 }
 
 // NewHealerBuilder creates a new builder for healers.
@@ -144,6 +147,8 @@ func (b *HealerBuilder) Build() (h *Healer, err error) {
 	h.rulesQueue = workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "rules")
 	h.alertsQueue = workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "alerts")
 
+	// initialize active jobs map:
+	h.activeJobs = new(syncmap.Map)
 	return
 }
 
@@ -157,6 +162,7 @@ func (h *Healer) Run(stopCh <-chan struct{}) error {
 	// Start the workers:
 	go wait.Until(h.runRulesWorker, time.Second, stopCh)
 	go wait.Until(h.runAlertsWorker, time.Second, stopCh)
+	go wait.Until(h.runActiveJobsWorker, h.config.AWX().JobStatusCheckInterval(), stopCh)
 	glog.Info("Workers started")
 
 	// For each rule inside the configuration create a change and add it to the queue:

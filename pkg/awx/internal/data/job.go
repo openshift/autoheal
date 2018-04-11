@@ -14,18 +14,15 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// This file contains the data structures used to launch jobs from job templates.
+// This file contains the data structures used for sending and receiving jobs.
 
 package data
 
-type JobTemplateLaunchGetResponse struct {
-	JobTemplateData *JobTemplateGetResponse `json:"job_template_data,omitempty"`
+type Job struct {
+	Id     int    `json:"id,omitempty"`
+	Status string `json:"status,omitempty"`
 }
 
-type JobTemplateLaunchPostRequest struct {
-	ExtraVars string `json:"extra_vars,omitempty"`
-}
-
-type JobTemplateLaunchPostResponse struct {
-	Job int `json:"job,omitempty"`
+type JobGetResponse struct {
+	Job
 }

@@ -206,6 +206,10 @@ func (c *Connection) JobTemplates() *JobTemplatesResource {
 	return NewJobTemplatesResource(c, "job_templates")
 }
 
+func (c *Connection) Jobs() *JobsResource {
+	return NewJobsResource(c, "jobs")
+}
+
 func (c *Connection) Close() {
 	c.token = ""
 }

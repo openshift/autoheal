@@ -98,9 +98,11 @@ func (r *JobTemplateLaunchPostRequest) Send() (response *JobTemplateLaunchPostRe
 
 	// Analyze the output data:
 	response = new(JobTemplateLaunchPostResponse)
+	response.Job = output.Job
 
 	return
 }
 
 type JobTemplateLaunchPostResponse struct {
+	Job int
 }
