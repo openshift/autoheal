@@ -79,6 +79,36 @@ data:
   password: ...
 ```
 
+Alternatively it is also possible to specify the user name and password directly
+inside the configuration file, using the `credentials` section. For example:
+
+```yaml
+credentials:
+  username: autoheal
+  password: ...
+```
+
+This is very convenient for development environments, but it is not recommended
+for production environments, as then the configuration file needs to be
+protected very carefully. For example, you can create a separate file for the
+credentials, give it restricted permissions, and then load it using the
+`--config-file` option twice:
+
+```
+$ echo > general.yml <<.
+awx:
+  address: https://myawx.example.com/api
+.
+$ echo > credentials.yml <<.
+credentials:
+  username: "autoheal"
+  password: "..."
+.
+$ chmod u=r,g=,o= credentials.yml
+$ autoheal server --config-file=general.yml --config-file=credentials.yml
+
+```
+
 The `tlsRef` parameter is a reference to the [Kubernetes
 secret](https://kubernetes.io/docs/concepts/configuration/secret) that contains
 the certificates used to connect to the AWX API. That secret should contain the
@@ -95,6 +125,27 @@ data:
     LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUMvVENDQWVXZ0F3SUJBZ0lKQUxNRXB6OWxa
     VkVzdzI3Sm5BYlMyejNhbUF0YTc1QmNnVGcvOUFCdDV0VVc2VTJOKzkKbXc9PQotLS0tLUVORCBD
     ...
+```
+
+Alternatively it is also possible to specify the CA certificates directly inside
+the configuration file, using the `tls` section. For example:
+
+```yaml
+tls:
+  caCerts: |-
+    -----BEGIN CERTIFICATE-----
+    MIIFgzCCA2ugAwIBAgIPXZONMGc2yAYdGsdUhGkHMA0GCSqGSIb3DQEBCwUAMDsx
+    CzAJBgNVBAYTAkVTMREwDwYDVQQKDAhGTk1ULVJDTTEZMBcGA1UECwwQQUMgUkFJ
+    ...
+    -----END CERTIFICATE-----
+```
+
+They can also be specified indirectly, putting the name of a PEM file in the
+`caFile` parameter:
+
+```yaml
+tls:
+  caFile: /etc/autoheal/my-ca.pem
 ```
 
 The `insecure` parameter controls whether to use an insecure connection to the

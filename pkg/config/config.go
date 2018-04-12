@@ -19,6 +19,7 @@ limitations under the License.
 package config
 
 import (
+	"bytes"
 	"time"
 
 	autoheal "github.com/openshift/autoheal/pkg/apis/autoheal/v1alpha2"
@@ -48,7 +49,7 @@ type AWXConfig struct {
 	user                   string
 	password               string
 	insecure               bool
-	ca                     []byte
+	ca                     *bytes.Buffer
 	project                string
 	jobStatusCheckInterval time.Duration
 }
@@ -97,7 +98,10 @@ func (c *AWXConfig) Password() string {
 // the TLS certificate presented by the AWX server. If not provided the system cert pool will be used.
 //
 func (c *AWXConfig) CA() []byte {
-	return c.ca
+	if c.ca == nil {
+		return nil
+	}
+	return c.ca.Bytes()
 }
 
 // Project returns the name of the AWX project that contains the auto-heal job templates.

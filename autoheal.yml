@@ -42,6 +42,18 @@ awx:
     name: my-awx-credentials
 
   #
+  # Alternatively the user name and password can be also specified directly
+  # inside the configuration file. This is very convenient for development
+  # environments, but it is not recommended for production environments.
+  #
+  # credentials:
+  #   username: my-user
+  #   password: my-password
+  #
+  # Note that if both `credentialsRef` and `credentials` are used, then only
+  # `credentialsRef` will be used.
+
+  #
   # Reference to the Kubernetes secret that contains the trusted CA certificates
   # used to verify the TLS certificate presented by the AWX server. If not
   # present or empty then the global system trusted certificates will be used.
@@ -49,6 +61,23 @@ awx:
   tlsRef:
     namespace: my-namespace
     name: my-awx-tls
+
+  #
+  # Alternatively the trusted CA certificates can be also specified directly
+  # inside the configuration file.
+  #
+  # tls:
+  #   caCerts: |-
+  #     -----BEGIN CERTIFICATE-----
+  #     MIIFgzCCA2ugAwIBAgIPXZONMGc2yAYdGsdUhGkHMA0GCSqGSIb3DQEBCwUAMDsx
+  #     CzAJBgNVBAYTAkVTMREwDwYDVQQKDAhGTk1ULVJDTTEZMBcGA1UECwwQQUMgUkFJ
+  #     ...
+  #     -----END CERTIFICATE-----
+  #
+  # Or loaded from a file:
+  #
+  # tls:
+  #   caFile: /etc/pki/tls/certs/my-ca.pem
 
   #
   # Whether to use an insecure connection to the AWX server this should always
@@ -69,6 +98,7 @@ awx:
 
 #
 # This section describes how to throttle the execution of healing rules.
+#
 throttling:
   #
   # The time that the service will remember an executed healing action. If an
@@ -85,9 +115,10 @@ throttling:
   # Will have different values for the `template` field if the triggering alerts
   # have different `service` labels.
   #
-  # Interval is a duration string ,that is, a sequence of decimal numbers,
-  # each with optional fraction and a unit suffix, such as "300ms" or "2h45m".
-  # Valid time units are "ns", "us" (or "µs"), "ms", "s", "m", "h". (For more details see https://golang.org/pkg/time/#Duration)
+  # Interval is a duration string ,that is, a sequence of decimal numbers, each
+  # with optional fraction and a unit suffix, such as "300ms" or "2h45m".  Valid
+  # time units are "ns", "us" (or "µs"), "ms", "s", "m", "h". (For more details
+  # see https://golang.org/pkg/time/#Duration)
   #
   interval: 1h
 
