@@ -25,7 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/runtime"
 
 	alertmanager "github.com/openshift/autoheal/pkg/alertmanager"
-	monitoring "github.com/openshift/autoheal/pkg/apis/monitoring/v1alpha1"
+	autoheal "github.com/openshift/autoheal/pkg/apis/autoheal/v1alpha2"
 )
 
 func (h *Healer) runAlertsWorker() {
@@ -87,9 +87,9 @@ func (h *Healer) processAlert(alert *alertmanager.Alert) error {
 //
 func (h *Healer) startHealing(alert *alertmanager.Alert) error {
 	// Find the rules that are activated for the alert:
-	activated := make([]*monitoring.HealingRule, 0)
+	activated := make([]*autoheal.HealingRule, 0)
 	h.rulesCache.Range(func(_, value interface{}) bool {
-		rule := value.(*monitoring.HealingRule)
+		rule := value.(*autoheal.HealingRule)
 		matches, err := h.checkRule(rule, alert)
 		if err != nil {
 			glog.Errorf(
@@ -130,7 +130,7 @@ func (h *Healer) cancelHealing(alert *alertmanager.Alert) error {
 	return nil
 }
 
-func (h *Healer) checkRule(rule *monitoring.HealingRule, alert *alertmanager.Alert) (matches bool, err error) {
+func (h *Healer) checkRule(rule *autoheal.HealingRule, alert *alertmanager.Alert) (matches bool, err error) {
 	glog.Infof(
 		"Checking rule '%s' for alert '%s'",
 		rule.ObjectMeta.Name,
@@ -168,7 +168,7 @@ func (h *Healer) checkMap(values, patterns map[string]string) (result bool, err 
 	return
 }
 
-func (h *Healer) runRule(rule *monitoring.HealingRule, alert *alertmanager.Alert) error {
+func (h *Healer) runRule(rule *autoheal.HealingRule, alert *alertmanager.Alert) error {
 	// Send the name of the rule to the log:
 	glog.Infof(
 		"Running rule '%s' for alert '%s'",
@@ -218,7 +218,7 @@ func (h *Healer) runRule(rule *monitoring.HealingRule, alert *alertmanager.Alert
 
 	// Execute the action:
 	switch typed := action.(type) {
-	case *monitoring.AWXJobAction:
+	case *autoheal.AWXJobAction:
 		err = h.runAWXJob(rule, typed, alert)
 	case *batch.Job:
 		err = h.runBatchJob(rule, typed, alert)

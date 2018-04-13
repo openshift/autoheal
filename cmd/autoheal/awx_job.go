@@ -22,11 +22,11 @@ import (
 	"github.com/golang/glog"
 
 	alertmanager "github.com/openshift/autoheal/pkg/alertmanager"
-	monitoring "github.com/openshift/autoheal/pkg/apis/monitoring/v1alpha1"
+	autoheal "github.com/openshift/autoheal/pkg/apis/autoheal/v1alpha2"
 	awx "github.com/openshift/autoheal/pkg/awx"
 )
 
-func (h *Healer) runAWXJob(rule *monitoring.HealingRule, action *monitoring.AWXJobAction, alert *alertmanager.Alert) error {
+func (h *Healer) runAWXJob(rule *autoheal.HealingRule, action *autoheal.AWXJobAction, alert *alertmanager.Alert) error {
 	var err error
 
 	// Get the AWX connection details from the configuration:
@@ -94,8 +94,8 @@ func (h *Healer) runAWXJob(rule *monitoring.HealingRule, action *monitoring.AWXJ
 func (h *Healer) launchAWXJob(
 	connection *awx.Connection,
 	template *awx.JobTemplate,
-	action *monitoring.AWXJobAction,
-	rule *monitoring.HealingRule,
+	action *autoheal.AWXJobAction,
+	rule *autoheal.HealingRule,
 ) error {
 	templateId := template.Id()
 	templateName := template.Name()

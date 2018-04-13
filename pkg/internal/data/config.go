@@ -22,7 +22,7 @@ package data
 import (
 	core "k8s.io/api/core/v1"
 
-	monitoring "github.com/openshift/autoheal/pkg/apis/monitoring/v1alpha1"
+	autoheal "github.com/openshift/autoheal/pkg/apis/autoheal/v1alpha2"
 )
 
 // Config is used to marshal and unmarshal the main configuration of the auto-heal service.
@@ -35,7 +35,7 @@ type Config struct {
 	Throttling *ThrottlingConfig
 
 	// The list of healing rules.
-	Rules []*monitoring.HealingRule `json:"rules,omitempty"`
+	Rules []*autoheal.HealingRule `json:"rules,omitempty"`
 }
 
 // AWXConfig contains the details used by the auto-heal service to connect to the AWX server and

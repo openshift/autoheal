@@ -21,7 +21,7 @@ package config
 import (
 	"time"
 
-	monitoring "github.com/openshift/autoheal/pkg/apis/monitoring/v1alpha1"
+	autoheal "github.com/openshift/autoheal/pkg/apis/autoheal/v1alpha2"
 )
 
 // Config is a read only view of the configuration of the auto-heal service.
@@ -29,7 +29,7 @@ import (
 type Config struct {
 	awx        *AWXConfig
 	throttling *ThrottlingConfig
-	rules      []*monitoring.HealingRule
+	rules      []*autoheal.HealingRule
 }
 
 // ThrottlingConfig is a read only view of the section of the configuration that describes how to
@@ -134,6 +134,6 @@ func (t *ThrottlingConfig) Interval() time.Duration {
 
 // Rules returns the list of healing rules defined in the configuration.
 //
-func (c *Config) Rules() []*monitoring.HealingRule {
+func (c *Config) Rules() []*autoheal.HealingRule {
 	return c.rules
 }

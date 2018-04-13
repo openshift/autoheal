@@ -20,12 +20,12 @@ import (
 	"testing"
 	"time"
 
-	monitoring "github.com/openshift/autoheal/pkg/apis/monitoring/v1alpha1"
+	autoheal "github.com/openshift/autoheal/pkg/apis/autoheal/v1alpha2"
 )
 
 func TestExisting(t *testing.T) {
 	memory := makeMemory(t, 1*time.Millisecond)
-	action := &monitoring.AWXJobAction{
+	action := &autoheal.AWXJobAction{
 		Template: "My template",
 	}
 	memory.Add(action)
@@ -36,7 +36,7 @@ func TestExisting(t *testing.T) {
 
 func TestNotExisting(t *testing.T) {
 	memory := makeMemory(t, 1*time.Millisecond)
-	action := &monitoring.AWXJobAction{
+	action := &autoheal.AWXJobAction{
 		Template: "My template",
 	}
 	if memory.Has(action) {
@@ -46,10 +46,10 @@ func TestNotExisting(t *testing.T) {
 
 func TestSameTemplate(t *testing.T) {
 	memory := makeMemory(t, 1*time.Millisecond)
-	first := &monitoring.AWXJobAction{
+	first := &autoheal.AWXJobAction{
 		Template: "My template",
 	}
-	second := &monitoring.AWXJobAction{
+	second := &autoheal.AWXJobAction{
 		Template: "My template",
 	}
 	memory.Add(first)
@@ -63,10 +63,10 @@ func TestSameTemplate(t *testing.T) {
 
 func TestDifferentTemplate(t *testing.T) {
 	memory := makeMemory(t, 1*time.Millisecond)
-	first := &monitoring.AWXJobAction{
+	first := &autoheal.AWXJobAction{
 		Template: "My template",
 	}
-	second := &monitoring.AWXJobAction{
+	second := &autoheal.AWXJobAction{
 		Template: "Your template",
 	}
 	memory.Add(first)
@@ -80,12 +80,12 @@ func TestDifferentTemplate(t *testing.T) {
 
 func TestSameVars(t *testing.T) {
 	memory := makeMemory(t, 1*time.Millisecond)
-	first := &monitoring.AWXJobAction{
+	first := &autoheal.AWXJobAction{
 		ExtraVars: `{
 			"myvar": "myvalue"
 		}`,
 	}
-	second := &monitoring.AWXJobAction{
+	second := &autoheal.AWXJobAction{
 		ExtraVars: `{
 			"myvar": "myvalue"
 		}`,
@@ -101,12 +101,12 @@ func TestSameVars(t *testing.T) {
 
 func TestDifferentVars(t *testing.T) {
 	memory := makeMemory(t, 1*time.Millisecond)
-	first := &monitoring.AWXJobAction{
+	first := &autoheal.AWXJobAction{
 		ExtraVars: `{
 			"myvar": "myvalue"
 		}`,
 	}
-	second := &monitoring.AWXJobAction{
+	second := &autoheal.AWXJobAction{
 		ExtraVars: `{
 			"yourvar": "yourvalue"
 		}`,
@@ -122,7 +122,7 @@ func TestDifferentVars(t *testing.T) {
 
 func TestExpired(t *testing.T) {
 	memory := makeMemory(t, 1*time.Millisecond)
-	action := &monitoring.AWXJobAction{
+	action := &autoheal.AWXJobAction{
 		Template: "My template",
 	}
 	memory.Add(action)
@@ -137,7 +137,7 @@ func TestExpired(t *testing.T) {
 
 func TestUpdate(t *testing.T) {
 	memory := makeMemory(t, 1*time.Millisecond)
-	action := &monitoring.AWXJobAction{
+	action := &autoheal.AWXJobAction{
 		Template: "My template",
 	}
 	memory.Add(action)
@@ -151,14 +151,14 @@ func TestUpdate(t *testing.T) {
 
 func TestLen(t *testing.T) {
 	memory := makeMemory(t, 1*time.Millisecond)
-	first := &monitoring.AWXJobAction{
+	first := &autoheal.AWXJobAction{
 		Template: "My template",
 	}
 	memory.Add(first)
 	if memory.Len() != 1 {
 		t.Fail()
 	}
-	second := &monitoring.AWXJobAction{
+	second := &autoheal.AWXJobAction{
 		Template: "Your template",
 	}
 	memory.Add(second)
@@ -169,7 +169,7 @@ func TestLen(t *testing.T) {
 
 func TestLenExpired(t *testing.T) {
 	memory := makeMemory(t, 1*time.Millisecond)
-	action := &monitoring.AWXJobAction{
+	action := &autoheal.AWXJobAction{
 		Template: "My template",
 	}
 	memory.Add(action)

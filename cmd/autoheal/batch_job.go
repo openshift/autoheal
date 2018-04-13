@@ -24,10 +24,10 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 
 	alertmanager "github.com/openshift/autoheal/pkg/alertmanager"
-	monitoring "github.com/openshift/autoheal/pkg/apis/monitoring/v1alpha1"
+	autoheal "github.com/openshift/autoheal/pkg/apis/autoheal/v1alpha2"
 )
 
-func (h *Healer) runBatchJob(rule *monitoring.HealingRule, job *batch.Job, alert *alertmanager.Alert) error {
+func (h *Healer) runBatchJob(rule *autoheal.HealingRule, job *batch.Job, alert *alertmanager.Alert) error {
 	glog.Infof(
 		"Running batch job '%s' to heal alert '%s'",
 		job.ObjectMeta.Name,

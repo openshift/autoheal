@@ -3,10 +3,10 @@ package main
 import (
 	"net/http"
 
-	monitoring "github.com/openshift/autoheal/pkg/apis/monitoring/v1alpha1"
-
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+
+	autoheal "github.com/openshift/autoheal/pkg/apis/autoheal/v1alpha2"
 )
 
 var (
@@ -28,7 +28,7 @@ func (h *Healer) initExportedMetrics() {
 }
 
 func (h *Healer) incrementAwxActions(
-	action *monitoring.AWXJobAction,
+	action *autoheal.AWXJobAction,
 	ruleName string,
 ) {
 	actionsInitiated.With(

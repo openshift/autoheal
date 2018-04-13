@@ -22,7 +22,7 @@ import (
 	"time"
 
 	alertmanager "github.com/openshift/autoheal/pkg/alertmanager"
-	monitoring "github.com/openshift/autoheal/pkg/apis/monitoring/v1alpha1"
+	autoheal "github.com/openshift/autoheal/pkg/apis/autoheal/v1alpha2"
 	"github.com/openshift/autoheal/pkg/memory"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/watch"
@@ -30,7 +30,7 @@ import (
 
 func TestRuleWithExactLabel(t *testing.T) {
 	healer := makeHealer(t, "empty")
-	rule := &monitoring.HealingRule{
+	rule := &autoheal.HealingRule{
 		Labels: map[string]string{
 			"mylabel": "myvalue",
 		},
@@ -51,7 +51,7 @@ func TestRuleWithExactLabel(t *testing.T) {
 
 func TestRuleWithExactAnnotation(t *testing.T) {
 	healer := makeHealer(t, "empty")
-	rule := &monitoring.HealingRule{
+	rule := &autoheal.HealingRule{
 		Annotations: map[string]string{
 			"myannotation": "myvalue",
 		},
@@ -72,7 +72,7 @@ func TestRuleWithExactAnnotation(t *testing.T) {
 
 func TestRuleWithMatchingLabel(t *testing.T) {
 	healer := makeHealer(t, "empty")
-	rule := &monitoring.HealingRule{
+	rule := &autoheal.HealingRule{
 		Labels: map[string]string{
 			"mylabel": "my.*",
 		},
@@ -93,7 +93,7 @@ func TestRuleWithMatchingLabel(t *testing.T) {
 
 func TestRuleWithMatchingAnnotation(t *testing.T) {
 	healer := makeHealer(t, "empty")
-	rule := &monitoring.HealingRule{
+	rule := &autoheal.HealingRule{
 		Annotations: map[string]string{
 			"myannotation": "my.*",
 		},
@@ -114,7 +114,7 @@ func TestRuleWithMatchingAnnotation(t *testing.T) {
 
 func TestRuleWithNonMatchingLabel(t *testing.T) {
 	healer := makeHealer(t, "empty")
-	rule := &monitoring.HealingRule{
+	rule := &autoheal.HealingRule{
 		Labels: map[string]string{
 			"mylabel": "your.*",
 		},
@@ -135,7 +135,7 @@ func TestRuleWithNonMatchingLabel(t *testing.T) {
 
 func TestRuleWithNonMatchingAnnotation(t *testing.T) {
 	healer := makeHealer(t, "empty")
-	rule := &monitoring.HealingRule{
+	rule := &autoheal.HealingRule{
 		Annotations: map[string]string{
 			"myannotation": "your.*",
 		},
@@ -156,7 +156,7 @@ func TestRuleWithNonMatchingAnnotation(t *testing.T) {
 
 func TestRuleWithTwoMatchingLabels(t *testing.T) {
 	healer := makeHealer(t, "empty")
-	rule := &monitoring.HealingRule{
+	rule := &autoheal.HealingRule{
 		Labels: map[string]string{
 			"mylabel":   "my.*",
 			"yourlabel": "your.*",
@@ -179,7 +179,7 @@ func TestRuleWithTwoMatchingLabels(t *testing.T) {
 
 func TestRuleWithTwoMatchingAnnotations(t *testing.T) {
 	healer := makeHealer(t, "empty")
-	rule := &monitoring.HealingRule{
+	rule := &autoheal.HealingRule{
 		Annotations: map[string]string{
 			"myannotation":   "my.*",
 			"yourannotation": "your.*",
@@ -202,7 +202,7 @@ func TestRuleWithTwoMatchingAnnotations(t *testing.T) {
 
 func TestRuleWithMatchingAndNotMatchingLabels(t *testing.T) {
 	healer := makeHealer(t, "empty")
-	rule := &monitoring.HealingRule{
+	rule := &autoheal.HealingRule{
 		Labels: map[string]string{
 			"mylabel":   "my.*",
 			"yourlabel": "your.*",
@@ -225,7 +225,7 @@ func TestRuleWithMatchingAndNotMatchingLabels(t *testing.T) {
 
 func TestRuleWithMatchingAndNotMatchingAnnotations(t *testing.T) {
 	healer := makeHealer(t, "empty")
-	rule := &monitoring.HealingRule{
+	rule := &autoheal.HealingRule{
 		Annotations: map[string]string{
 			"myannotation":   "my.*",
 			"yourannotation": "your.*",
@@ -248,7 +248,7 @@ func TestRuleWithMatchingAndNotMatchingAnnotations(t *testing.T) {
 
 func TestRuleWithMatchingLabelAndAnnotation(t *testing.T) {
 	healer := makeHealer(t, "empty")
-	rule := &monitoring.HealingRule{
+	rule := &autoheal.HealingRule{
 		Labels: map[string]string{
 			"mylabel": "my.*",
 		},
@@ -275,7 +275,7 @@ func TestRuleWithMatchingLabelAndAnnotation(t *testing.T) {
 
 func TestRuleWithMatchingLabelAndNonMatchingAnnotation(t *testing.T) {
 	healer := makeHealer(t, "empty")
-	rule := &monitoring.HealingRule{
+	rule := &autoheal.HealingRule{
 		Labels: map[string]string{
 			"mylabel": "my.*",
 		},
@@ -302,7 +302,7 @@ func TestRuleWithMatchingLabelAndNonMatchingAnnotation(t *testing.T) {
 
 func TestRuleWithNonMatchingLabelAndMatchingAnnotation(t *testing.T) {
 	healer := makeHealer(t, "empty")
-	rule := &monitoring.HealingRule{
+	rule := &autoheal.HealingRule{
 		Labels: map[string]string{
 			"mylabel": "my.*",
 		},
@@ -329,7 +329,7 @@ func TestRuleWithNonMatchingLabelAndMatchingAnnotation(t *testing.T) {
 
 func TestRuleWithNonMatchingAndIgnoredLabels(t *testing.T) {
 	healer := makeHealer(t, "empty")
-	rule := &monitoring.HealingRule{
+	rule := &autoheal.HealingRule{
 		Labels: map[string]string{
 			"mylabel": "my.*",
 		},
@@ -351,7 +351,7 @@ func TestRuleWithNonMatchingAndIgnoredLabels(t *testing.T) {
 
 func TestRuleWithNonMatchingAndIgnoredAnnotations(t *testing.T) {
 	healer := makeHealer(t, "empty")
-	rule := &monitoring.HealingRule{
+	rule := &autoheal.HealingRule{
 		Annotations: map[string]string{
 			"myannotation": "my.*",
 		},
@@ -373,7 +373,7 @@ func TestRuleWithNonMatchingAndIgnoredAnnotations(t *testing.T) {
 
 func TestRuleWithMatchingAndMissingLabels(t *testing.T) {
 	healer := makeHealer(t, "empty")
-	rule := &monitoring.HealingRule{
+	rule := &autoheal.HealingRule{
 		Labels: map[string]string{
 			"mylabel":   "my.*",
 			"yourlabel": "your.*",
@@ -395,7 +395,7 @@ func TestRuleWithMatchingAndMissingLabels(t *testing.T) {
 
 func TestRuleWithMatchingAndMissingAnnotations(t *testing.T) {
 	healer := makeHealer(t, "empty")
-	rule := &monitoring.HealingRule{
+	rule := &autoheal.HealingRule{
 		Annotations: map[string]string{
 			"myannotation":   "my.*",
 			"yourannotation": "your.*",
@@ -417,7 +417,7 @@ func TestRuleWithMatchingAndMissingAnnotations(t *testing.T) {
 
 func TestEmptyRuleMatchesEmptyAlert(t *testing.T) {
 	healer := makeHealer(t, "empty")
-	rule := &monitoring.HealingRule{}
+	rule := &autoheal.HealingRule{}
 	alert := &alertmanager.Alert{}
 	matches, err := healer.checkRule(rule, alert)
 	if err != nil {
@@ -430,7 +430,7 @@ func TestEmptyRuleMatchesEmptyAlert(t *testing.T) {
 
 func TestEmptyRuleMatchesAlertWithLabel(t *testing.T) {
 	healer := makeHealer(t, "empty")
-	rule := &monitoring.HealingRule{}
+	rule := &autoheal.HealingRule{}
 	alert := &alertmanager.Alert{
 		Labels: map[string]string{
 			"mylabel": "myvalue",
@@ -447,7 +447,7 @@ func TestEmptyRuleMatchesAlertWithLabel(t *testing.T) {
 
 func TestEmptyRuleMatchesAlertWithAnnotation(t *testing.T) {
 	healer := makeHealer(t, "empty")
-	rule := &monitoring.HealingRule{}
+	rule := &autoheal.HealingRule{}
 	alert := &alertmanager.Alert{
 		Annotations: map[string]string{
 			"myannotation": "myvalue",
@@ -466,11 +466,11 @@ func TestHealerActionMemory(t *testing.T) {
 	healer := makeHealer(t, "empty")
 	defer runtime.HandleCrash()
 
-	rule := &monitoring.HealingRule{
+	rule := &autoheal.HealingRule{
 		Labels: map[string]string{
 			"mylabel": "myvalue",
 		},
-		AWXJob: &monitoring.AWXJobAction{
+		AWXJob: &autoheal.AWXJobAction{
 			Template: "test_template",
 		},
 	}
@@ -514,11 +514,11 @@ func TestHealerActionMemoryDisabled(t *testing.T) {
 	duration, _ := time.ParseDuration("0")
 	healer.actionMemory, _ = memory.NewShortTermMemoryBuilder().Duration(duration).Build()
 
-	rule := &monitoring.HealingRule{
+	rule := &autoheal.HealingRule{
 		Labels: map[string]string{
 			"mylabel": "myvalue",
 		},
-		AWXJob: &monitoring.AWXJobAction{
+		AWXJob: &autoheal.AWXJobAction{
 			Template: "test_template",
 		},
 	}

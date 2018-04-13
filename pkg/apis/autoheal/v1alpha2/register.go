@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha1
+package v1alpha2
 
 import (
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -24,13 +24,13 @@ import (
 
 // GroupName is the group name used in this package.
 //
-const GroupName = "monitoring.openshift.io"
+const GroupName = "autoheal.openshift.io"
 
 // SchemeGroupVersion is the group version used to register these objects.
 //
 var SchemeGroupVersion = schema.GroupVersion{
 	Group:   GroupName,
-	Version: "v1alpha1",
+	Version: "v1alpha2",
 }
 
 // Kind takes an unqualified kind and returns a group qualified kind.
