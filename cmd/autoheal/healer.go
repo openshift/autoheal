@@ -214,7 +214,9 @@ func (h *Healer) handleRequest(response http.ResponseWriter, request *http.Reque
 	}
 
 	// Dump the request to the log:
-	glog.Infof("Request body:\n%s", h.indent(body))
+	if glog.V(2) {
+		glog.Infof("Request body:\n%s", h.indent(body))
+	}
 
 	// Parse the JSON request body:
 	message := new(alertmanager.Message)
