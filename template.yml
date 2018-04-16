@@ -36,6 +36,10 @@ parameters:
   description: |-
     The namespace where the auto-heal service will be created.
   value: openshift-autoheal
+- name: OAUTH_PROXY_SECRET
+  description: |-
+    Secret used to encrypt OAuth session cookies.
+  value: openshift-monitoring
 - name: AWX_ADDRESS
   description: |-
     The URL of the AWX API endpoint, including the `/api` suffix, but not the
@@ -111,6 +115,19 @@ objects:
     username: ${AWX_USER}
     password: ${AWX_PASSWORD}
 
+- apiVersion: rbac.authorization.k8s.io/v1beta1
+  kind: ClusterRoleBinding
+  metadata:
+    name: ${NAME}-auth-delegator
+  roleRef:
+    apiGroup: rbac.authorization.k8s.io
+    kind: ClusterRole
+    name: system:auth-delegator
+  subjects:
+  - kind: ServiceAccount
+    name: ${NAME}
+    namespace: ${NAMESPACE}
+
 - apiVersion: v1
   kind: Secret
   metadata:
@@ -118,6 +135,42 @@ objects:
     name: ${NAME}-awx-tls
   data:
     ca.crt: ${AWX_CA}
+
+- apiVersion: v1
+  kind: Secret
+  metadata:
+    namespace: ${NAMESPACE}
+    name: ${NAME}-proxy-cookie
+  data:
+    session_secret: ${OAUTH_PROXY_SECRET}
+
+- apiVersion: rbac.authorization.k8s.io/v1
+  kind: ClusterRole
+  metadata:
+    name: ${NAME}-access
+  rules:
+  - apiGroups:
+    - ""
+    resources:
+    - secrets
+    resourceNames:
+    - ${NAME}-access-key
+    verbs:
+    - get
+
+- apiVersion: rbac.authorization.k8s.io/v1
+  kind: RoleBinding
+  metadata:
+    namespace: ${NAMESPACE}
+    name: alertmanager-${NAME}-access
+  roleRef:
+    apiGroup: rbac.authorization.k8s.io
+    kind: ClusterRole
+    name: ${NAME}-access
+  subjects:
+  - kind: ServiceAccount
+    namespace: openshift-monitoring
+    name: alertmanager-main
 
 - apiVersion: v1
   kind: ConfigMap
@@ -157,7 +210,38 @@ objects:
         - name: config
           configMap:
             name: ${NAME}-config
+        - name: ${NAME}-proxy-tls
+          secret:
+            secretName: ${NAME}-proxy-tls
+        - name: ${NAME}-proxy-cookie
+          secret:
+            secretName: ${NAME}-proxy-cookie
         containers:
+        - name: oauth-proxy
+          image: openshift/oauth-proxy:v1.1.0
+          imagePullPolicy: IfNotPresent
+          ports:
+          - containerPort: 8443
+            name: public
+          args:
+          - --https-address=:8443
+          - --provider=openshift
+          - --openshift-service-account=${NAME}
+          - --upstream=http://localhost:9099
+          - --tls-cert=/etc/tls/private/tls.crt
+          - -email-domain=*
+          - '-openshift-sar={"resource": "secrets", "verb": "get", "name": "${NAME}-access-key", "namespace": "${NAMESPACE}"}'
+          - '-openshift-delegate-urls={"/": {"resource": "secrets", "verb": "get", "name": "${NAME}-access-key", "namespace": "${NAMESPACE}"}}'
+          - -tls-key=/etc/tls/private/tls.key
+          - -client-secret-file=/var/run/secrets/kubernetes.io/serviceaccount/token
+          - -cookie-secret-file=/etc/proxy/secrets/session_secret
+          - -openshift-ca=/etc/pki/tls/cert.pem
+          - -openshift-ca=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+          volumeMounts:
+          - mountPath: /etc/tls/private
+            name: ${NAME}-proxy-tls
+          - mountPath: /etc/proxy/secrets
+            name: ${NAME}-proxy-cookie
         - name: service
           image: openshift/origin-autoheal:latest
           imagePullPolicy: IfNotPresent
@@ -171,15 +255,17 @@ objects:
           - --config-file=/etc/autoheal/autoheal.yml
           - --logtostderr
 
-- kind: Service
+- apiVersion: v1
+  kind: Service
   metadata:
     namespace: ${NAMESPACE}
     name: ${NAME}
+    annotations:
+      service.alpha.openshift.io/serving-cert-secret-name: ${NAME}-proxy-tls
   spec:
     selector:
       app: ${NAME}
     ports:
     - name: autoheal
-      protocol: TCP
-      port: 9099
-      targetPort: 9099
+      port: 443
+      targetPort: 8443
