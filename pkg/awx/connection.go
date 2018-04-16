@@ -45,9 +45,9 @@ type ConnectionBuilder struct {
 	bearer   string
 	insecure bool
 
-	// If cacrt is specified, the client will expect the server certificate
-	// to be signed by this CA chain. If it isn't, the client will use the host trust store.
-	cacrt []byte
+	// Trusted CA certificates can be loaded from slices of bytes or from files:
+	caCerts [][]byte
+	caFiles []string
 }
 
 type Connection struct {
@@ -119,8 +119,25 @@ func (b *ConnectionBuilder) Insecure(insecure bool) *ConnectionBuilder {
 	return b
 }
 
-func (b *ConnectionBuilder) CACertificates(cacrt []byte) *ConnectionBuilder {
-	b.cacrt = cacrt
+// CACertificates adds a list of CA certificates that will be trusted when verifying the
+// certificates presented by the AWX server. The certs parameter must be a list of PEM encoded
+// certificates.
+//
+func (b *ConnectionBuilder) CACertificates(certs []byte) *ConnectionBuilder {
+	if len(certs) > 0 {
+		b.caCerts = append(b.caCerts, certs)
+	}
+	return b
+}
+
+// CAFile sets the name of the file that contains the PEM encoded CA certificates that will be
+// trusted when verifying the certificate presented by the AWX server. It can be used multiple times
+// to specify multiple files.
+//
+func (b *ConnectionBuilder) CAFile(file string) *ConnectionBuilder {
+	if file != "" {
+		b.caFiles = append(b.caFiles, file)
+	}
 	return b
 }
 
@@ -157,19 +174,59 @@ func (b *ConnectionBuilder) Build() (c *Connection, err error) {
 		return
 	}
 
-	if len(b.cacrt) > 0 && b.insecure {
+	// Check the security flags:
+	if len(b.caCerts)+len(b.caFiles) > 0 && b.insecure {
 		err = fmt.Errorf("CA certificates and insecure are mutually exclusive")
 		return
 	}
+
+	// Load the CA certificates:
 	var certStore *x509.CertPool
-	if len(b.cacrt) == 0 {
+	if len(b.caCerts) == 0 && len(b.caFiles) == 0 {
 		certStore, err = x509.SystemCertPool()
 		if err != nil {
 			return
 		}
 	} else {
 		certStore = x509.NewCertPool()
-		certStore.AppendCertsFromPEM(b.cacrt)
+
+		// Load the CA certificates that have been specified as slices of bytes:
+		if len(b.caCerts) > 0 {
+			for _, caCert := range b.caCerts {
+				if !certStore.AppendCertsFromPEM(caCert) {
+					err = fmt.Errorf(
+						"The text '%s' doesn't contain PEM encoded certificates",
+						string(caCert),
+					)
+					return
+				}
+			}
+		}
+
+		// Load the CA certificates that have been specified as files:
+		if len(b.caFiles) > 0 {
+			for _, caFile := range b.caFiles {
+				if caFile != "" {
+					var caCert []byte
+					caCert, err = ioutil.ReadFile(caFile)
+					if err != nil {
+						err = fmt.Errorf(
+							"Can't load CA certificates file '%s': %s",
+							caFile,
+							err,
+						)
+						return
+					}
+					if !certStore.AppendCertsFromPEM(caCert) {
+						err = fmt.Errorf(
+							"The file '%s' doesn't contain PEM encoded certificates",
+							caFile,
+						)
+						return
+					}
+				}
+			}
+		}
 	}
 
 	// Create the HTTP client:
