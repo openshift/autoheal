@@ -21,7 +21,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 
-	monitoring "github.com/openshift/autoheal/pkg/apis/monitoring/v1alpha1"
+	autoheal "github.com/openshift/autoheal/pkg/apis/autoheal/v1alpha2"
 )
 
 func (h *Healer) runRulesWorker() {
@@ -76,13 +76,13 @@ func (h *Healer) processRuleChange(change *RuleChange) error {
 	return nil
 }
 
-func (h *Healer) processAddedRule(rule *monitoring.HealingRule) error {
+func (h *Healer) processAddedRule(rule *autoheal.HealingRule) error {
 	value, ok := h.rulesCache.Load(rule.ObjectMeta.Name)
 	if !ok {
 		h.rulesCache.Store(rule.ObjectMeta.Name, rule)
 		glog.Infof("Rule '%s' was added", rule.ObjectMeta.Name)
 	} else {
-		existing := value.(*monitoring.HealingRule)
+		existing := value.(*autoheal.HealingRule)
 		if rule.ObjectMeta.ResourceVersion != existing.ObjectMeta.ResourceVersion {
 			h.rulesCache.Store(rule.ObjectMeta.Name, rule)
 			glog.Infof("Rule '%s' was updated", rule.ObjectMeta.Name)
@@ -91,7 +91,7 @@ func (h *Healer) processAddedRule(rule *monitoring.HealingRule) error {
 	return nil
 }
 
-func (h *Healer) processDeletedRule(rule *monitoring.HealingRule) error {
+func (h *Healer) processDeletedRule(rule *autoheal.HealingRule) error {
 	_, ok := h.rulesCache.Load(rule.ObjectMeta.Name)
 	if ok {
 		h.rulesCache.Delete(rule.ObjectMeta.Name)

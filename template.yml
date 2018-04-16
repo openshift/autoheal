@@ -35,7 +35,7 @@ parameters:
 - name: NAMESPACE
   description: |-
     The namespace where the auto-heal service will be created.
-  value: openshift-monitoring
+  value: openshift-autoheal
 - name: AWX_ADDRESS
   description: |-
     The URL of the AWX API endpoint, including the `/api` suffix, but not the

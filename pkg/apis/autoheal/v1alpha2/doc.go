@@ -16,5 +16,5 @@ limitations under the License.
 
 // +k8s:deepcopy-gen=package
 
-// +groupName=monitoring.openshift.io
-package v1alpha1 // import "github.com/openshift/autoheal/pkg/apis/monitoring/v1alpha1"
+// +groupName=autoheal.openshift.io
+package v1alpha2 // import "github.com/openshift/autoheal/pkg/apis/autoheal/v1alpha2"

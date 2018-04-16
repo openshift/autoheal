@@ -19,12 +19,12 @@ package main
 import (
 	"k8s.io/apimachinery/pkg/watch"
 
-	monitoring "github.com/openshift/autoheal/pkg/apis/monitoring/v1alpha1"
+	autoheal "github.com/openshift/autoheal/pkg/apis/autoheal/v1alpha2"
 )
 
 // RuleChange contains information describing a change that happened to a healing rule.
 //
 type RuleChange struct {
 	Type watch.EventType
-	Rule *monitoring.HealingRule
+	Rule *autoheal.HealingRule
 }

@@ -33,7 +33,7 @@ import (
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
-	monitoring "github.com/openshift/autoheal/pkg/apis/monitoring/v1alpha1"
+	autoheal "github.com/openshift/autoheal/pkg/apis/autoheal/v1alpha2"
 	"github.com/openshift/autoheal/pkg/internal/data"
 )
 
@@ -326,7 +326,7 @@ func (l *Loader) loadSecret(reference *core.SecretReference) (secret *core.Secre
 	return
 }
 
-func (l *Loader) mergeRules(rules []*monitoring.HealingRule) error {
+func (l *Loader) mergeRules(rules []*autoheal.HealingRule) error {
 	l.config.rules = append(l.config.rules, rules...)
 	return nil
 }
