@@ -259,12 +259,22 @@ func (b *ConnectionBuilder) Build() (c *Connection, err error) {
 	return
 }
 
+// Jobs returns a reference to the resource that manages the collection of jobs.
+//
+func (c *Connection) Jobs() *JobsResource {
+	return NewJobsResource(c, "jobs")
+}
+
+// JobTemplates returns a reference to the resource that manages the collection of job templates.
+//
 func (c *Connection) JobTemplates() *JobTemplatesResource {
 	return NewJobTemplatesResource(c, "job_templates")
 }
 
-func (c *Connection) Jobs() *JobsResource {
-	return NewJobsResource(c, "jobs")
+// Projects returns a reference to the resource that manages the collection of projects.
+//
+func (c *Connection) Projects() *ProjectsResource {
+	return NewProjectsResource(c, "projects")
 }
 
 func (c *Connection) Close() {
