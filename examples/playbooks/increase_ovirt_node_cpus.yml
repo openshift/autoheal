@@ -1,0 +1,110 @@
+#
+# Copyright (c) 2018 Red Hat, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+
+#
+# This example shows how to increase the number of CPU's of an OpenShift node
+# that is running as a virtual machine inside an oVirt environment.
+#
+# The playbook expects the IP address of the node inside the `instance`
+# variable. That can be achieved using the `extraVars` field and templating
+# mechanism of the auto-heal service. For example, the healing action could be
+# defined as follows:
+#
+#   awxJob:
+#     template: "Increase node CPUS"
+#     extraVars: |-
+#       {
+#         "instance": "{{ $labels.instance }}"
+#       }
+#
+# That will populate the `instance` variable with the value of the `instance`
+# label of the alert, which will be the IP address of the node if the alert is
+# based in a metric obtained from the Prometheus node exporter. For example, an
+# alert definition like this:
+#
+#   alert: NodeCPUHigh
+#     expr: avg(rate(node_cpu{mode="idle"}[1m])) by (instance) < 0.2
+#     for: 1m
+#     labels:
+#       severity: warning
+#     annotations:
+#       description: Use of CPU in node {{ $labels.instance }} is too high
+#
+# Will produce an alert with this label, containing the IP address and the port
+# number of the metrics endpoint of the node:
+#
+#   instance="192.168.0.6:9100"
+#
+# To use this playbook the credentials for the oVirt environment have to be
+# available in a credential inside the AWX server.
+#
+
+- name: Increase node CPUs
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  # These variables are intended to be overridden using the `--extra-vars`
+  # command line option:
+  vars:
+    # Maximum number of CPUs to assign to the VM.
+    max_cpus: 4
+    # Amount of CPUs to add in each increase.
+    inc_cpus: 1
+
+  tasks:
+
+  # Calculate the IP address from the `instance` input variable, and then do a
+  # reverse DNS lookup to find the FQDN. We do this because we are assuming that
+  # the name of the virtual machine in the oVirt environment is equal to the
+  # FQDN.
+  - set_fact:
+      vm_ip: "{{ instance | regex_replace(':.*$') }}"
+  - set_fact:
+      vm_name: "{{ lookup('dig', vm_ip + '/PTR') | regex_replace('\\.$') }}"
+
+  # Retrieve the facts of the virtual machine, so that we can check that it
+  # exists and get its current amount of CPUs:
+  - ovirt_vms_facts:
+      pattern: "name={{ vm_name }}"
+  - debug:
+      var: ovirt_vms
+
+  # Fail if the virtual machine doesn't exist:
+  - fail:
+      msg: "Virtual machine '{{ vm_name }}' doesn't exist"
+    when: ovirt_vms | length == 0
+
+  # Extract the current number of CPUs. Note that we get and increase the number
+  # of sockets, not the number of cores per socket, because that is what can be
+  # changed without restarting the virtual machine in oVirt.
+  - set_fact:
+      current_cpus: "{{ ovirt_vms[0].cpu.topology.sockets }}"
+      var: current_cpus
+
+  # Calculate the new number of CPUs:
+  - set_fact:
+      new_cpus: "{{ [current_cpus|int + inc_cpus|int, max_cpus|int] | min }}"
+  - debug:
+      var: new_cpus
+
+  # Update the virtual machine with the new number of CPUs:
+  - ovirt_vms:
+      name: "{{ vm_name }}"
+      cpu_sockets: "{{ new_cpus }}"
+    when: new_cpus > current_cpus
