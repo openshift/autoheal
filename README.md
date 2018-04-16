@@ -252,9 +252,16 @@ $ autoheal server --config-file=my.yml --logtostderr
 $ curl --data @examples/node-down-alert.json http://localhost:9099/alerts
 ```
 
-# Installing
+## Installing
 
 To install the service to an _OpenShift_ cluster use the template contained in
 the `template.yml` file. This template requires at the very minimum the address
 and the credentials to connect to the AWX or Ansible Tower server. See the
 `template.sh` script for an example of how to use it.
+
+## Dependencies
+
+In order to use the AWX API the auto-heal service uses a Go AWX client that is
+part of this repository, but that will be likely moved to a separate repository
+in the future. The code is in the [pkg/awx](pkg/awx) directory, and there is a
+collection of examples in the [examples/awx](examples/awx) directory.
