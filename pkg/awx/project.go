@@ -21,10 +21,10 @@ package awx
 // Project represents an AWX project.
 //
 type Project struct {
-	id   int
-	name string
-	scmType string
-	scmURL string
+	id        int
+	name      string
+	scmType   string
+	scmURL    string
 	scmBranch string
 }
 
