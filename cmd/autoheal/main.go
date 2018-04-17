@@ -23,6 +23,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
+	"github.com/openshift/autoheal/pkg/apiserver"
 	"github.com/openshift/autoheal/pkg/receiver"
 )
 
@@ -35,6 +36,7 @@ var rootCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(receiver.Cmd)
+	rootCmd.AddCommand(apiserver.Cmd)
 	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
 }
 

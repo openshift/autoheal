@@ -50,6 +50,10 @@ required = [
   version = "kubernetes-1.10.1"
 
 [[constraint]]
+  name = "k8s.io/apiserver"
+  version = "kubernetes-1.10.1"
+
+[[constraint]]
   name = "k8s.io/code-generator"
   version = "kubernetes-1.10.1"
 

@@ -64,6 +64,42 @@ objects:
 - apiVersion: authorization.openshift.io/v1
   kind: ClusterRole
   metadata:
+    labels:
+      app: autoheal
+    name: autoheal
+  rules:
+  - apiGroups:
+    - ""
+    resources:
+    - namespaces
+    verbs:
+    - get
+    - list
+    - watch
+  - apiGroups:
+    - admissionregistration.k8s.io
+    resources:
+    - mutatingwebhookconfigurations
+    - validatingwebhookconfigurations
+    verbs:
+    - get
+    - list
+    - watch
+  - apiGroups:
+    - autoheal.openshift.io
+    resources:
+    - healingrules
+    verbs:
+    - create
+    - delete
+    - get
+    - list
+    - update
+    - watch
+
+- apiVersion: authorization.openshift.io/v1
+  kind: ClusterRole
+  metadata:
     name: autoheal-access
     labels:
       app: autoheal
@@ -90,6 +126,19 @@ objects:
   - kind: ServiceAccount
     namespace: openshift-autoheal
     name: autoheal
+
+- apiVersion: authorization.openshift.io/v1
+  kind: ClusterRoleBinding
+  metadata:
+    labels:
+      app: autoheal
+    name: autoheal
+  roleRef:
+    name: autoheal
+  subjects:
+  - kind: ServiceAccount
+    name: autoheal
+    namespace: openshift-autoheal
 
 - apiVersion: authorization.openshift.io/v1
   kind: RoleBinding
@@ -153,16 +202,28 @@ objects:
       spec:
         serviceAccountName: autoheal
         volumes:
+
         - name: config
           secret:
             secretName: autoheal-config
+
+        - name: data
+          emptyDir: {}
+
         - name: proxy-tls
           secret:
             secretName: autoheal-proxy-tls
+
         - name: proxy-cookie
           secret:
             secretName: autoheal-proxy-cookie
+
+        - name: apiserver-tls
+          secret:
+            secretName: autoheal-apiserver-tls
+
         containers:
+
         - name: proxy
           image: openshift/oauth-proxy:v1.1.0
           imagePullPolicy: IfNotPresent
@@ -188,6 +249,37 @@ objects:
           - -cookie-secret-file=/etc/proxy/secrets/session_secret
           - -openshift-ca=/etc/pki/tls/cert.pem
           - -openshift-ca=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+
+        - name: etcd
+          image: quay.io/coreos/etcd:v3.1.11
+          imagePullPolicy: IfNotPresent
+          volumeMounts:
+          - name: data
+            mountPath: /var/lib/autoheal
+          workingDir: /var/lib/autoheal
+          command:
+          - /usr/local/bin/etcd
+          - --data-dir=/var/lib/autoheal
+
+        - name: apiserver
+          image: ${IMAGE}
+          imagePullPolicy: IfNotPresent
+          volumeMounts:
+          - name: apiserver-tls
+            mountPath: /etc/tls/private
+          workingDir: /var/lib/autoheal
+          command:
+          - /usr/bin/autoheal
+          args:
+          - apiserver
+          - --bind-address=0.0.0.0
+          - --secure-port=9443
+          - --tls-cert-file=/etc/tls/private/tls.crt
+          - --tls-private-key-file=/etc/tls/private/tls.key
+          - --etcd-servers=http://localhost:2379
+          - --logtostderr
+          - --v=8
+
         - name: receiver
           image: ${IMAGE}
           imagePullPolicy: IfNotPresent
@@ -213,6 +305,20 @@ objects:
     selector:
       app: autoheal
     ports:
-    - name: autoheal
-      port: 443
+    - port: 443
       targetPort: 8443
+
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: apiserver
+    labels:
+      app: autoheal
+    annotations:
+      service.alpha.openshift.io/serving-cert-secret-name: autoheal-apiserver-tls
+  spec:
+    selector:
+      app: autoheal
+    ports:
+    - port: 443
+      targetPort: 9443
