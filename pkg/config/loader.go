@@ -19,6 +19,7 @@ limitations under the License.
 package config
 
 import (
+	"bytes"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -91,6 +92,7 @@ func (l *Loader) Load() (config *Config, err error) {
 	// Create an default configuration:
 	l.config = &Config{
 		awx: &AWXConfig{
+			ca: new(bytes.Buffer),
 			jobStatusCheckInterval: 5 * time.Minute,
 		},
 		throttling: &ThrottlingConfig{
@@ -207,16 +209,28 @@ func (l *Loader) mergeAWX(decoded *data.AWXConfig) error {
 	}
 
 	// Merge the credentials:
+	if decoded.Credentials != nil {
+		err := l.mergeAWXCredentials(decoded.Credentials)
+		if err != nil {
+			return err
+		}
+	}
 	if decoded.CredentialsRef != nil {
-		err := l.mergeAWXCredentials(decoded.CredentialsRef)
+		err := l.mergeAWXCredentialsSecret(decoded.CredentialsRef)
 		if err != nil {
 			return err
 		}
 	}
 
 	// Merge the TLS details:
+	if decoded.TLS != nil {
+		err := l.mergeAWXTLS(decoded.TLS)
+		if err != nil {
+			return err
+		}
+	}
 	if decoded.TLSRef != nil {
-		err := l.mergeAWXTLS(decoded.TLSRef)
+		err := l.mergeAWXTLSSecret(decoded.TLSRef)
 		if err != nil {
 			return err
 		}
@@ -253,7 +267,17 @@ func (l *Loader) mergeThrottling(decoded *data.ThrottlingConfig) error {
 	return nil
 }
 
-func (l *Loader) mergeAWXCredentials(reference *core.SecretReference) error {
+func (l *Loader) mergeAWXCredentials(credentials *data.AWXCredentialsConfig) error {
+	if credentials.Username != "" {
+		l.config.awx.user = credentials.Username
+	}
+	if credentials.Password != "" {
+		l.config.awx.password = credentials.Password
+	}
+	return nil
+}
+
+func (l *Loader) mergeAWXCredentialsSecret(reference *core.SecretReference) error {
 	secret, err := l.loadSecret(reference)
 	if err != nil {
 		return err
@@ -273,7 +297,21 @@ func (l *Loader) mergeAWXCredentials(reference *core.SecretReference) error {
 	return nil
 }
 
-func (l *Loader) mergeAWXTLS(reference *core.SecretReference) error {
+func (l *Loader) mergeAWXTLS(tls *data.TLSConfig) error {
+	if tls.CACerts != "" {
+		l.config.awx.ca.WriteString(tls.CACerts)
+	}
+	if tls.CAFile != "" {
+		caCerts, err := ioutil.ReadFile(tls.CAFile)
+		if err != nil {
+			return err
+		}
+		l.config.awx.ca.Write(caCerts)
+	}
+	return nil
+}
+
+func (l *Loader) mergeAWXTLSSecret(reference *core.SecretReference) error {
 	secret, err := l.loadSecret(reference)
 	if err != nil {
 		return err
@@ -283,7 +321,7 @@ func (l *Loader) mergeAWXTLS(reference *core.SecretReference) error {
 		var ok bool
 		value, ok = secret.Data[core.ServiceAccountRootCAKey]
 		if ok {
-			l.config.awx.ca = value
+			l.config.awx.ca.Write(value)
 		}
 	}
 	return nil

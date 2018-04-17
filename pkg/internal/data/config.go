@@ -48,9 +48,15 @@ type AWXConfig struct {
 	// Proxy is the address of the proxy server used to access the API of the AWX server.
 	Proxy string `json:"proxy,omitempty"`
 
+	// Credentials contains the user name and password.
+	Credentials *AWXCredentialsConfig `json:"credentials,omitempty"`
+
 	// CredentialsRef is the reference (name, and optionally namespace) of the secret that contains
 	// the user name and password used to access the AWX API.
 	CredentialsRef *core.SecretReference `json:"credentialsRef,omitempty"`
+
+	// TLS contains the TLS configuration.
+	TLS *TLSConfig `json:"tls,omitempty"`
 
 	// TLSRef is the reference (name, and optionally namespace) of the secret that contains the TLS
 	// certificates and keys used to access the AWX API.
@@ -64,6 +70,20 @@ type AWXConfig struct {
 
 	// JobStatusCheckInterval determines how often to check AWX active jobs status
 	JobStatusCheckInterval string `json:"jobStatusCheckInterval,omitempty"`
+}
+
+// AWXCredentialsConfig contains the credentials used to connect to the AWX server.
+//
+type AWXCredentialsConfig struct {
+	Username string `json:"username,omitempty"`
+	Password string `json:"password,omitempty"`
+}
+
+// TLSConfig contains the TLS configuration.
+//
+type TLSConfig struct {
+	CACerts string `json:"caCerts,omitempty"`
+	CAFile  string `json:"caFile,omitempty"`
 }
 
 // ThrottlingConfig is used to mardhal and unmarshal the healing rule exeuction throttling
