@@ -17,6 +17,7 @@ limitations under the License.
 package config
 
 import (
+	"bytes"
 	"io/ioutil"
 	"os"
 	"reflect"
@@ -62,6 +63,7 @@ func TestFiles(t *testing.T) {
 			address: "http://test_address.com",
 			proxy:   "http://test-proxy.com:1234",
 			jobStatusCheckInterval: 5 * time.Minute,
+			ca: new(bytes.Buffer),
 		},
 		throttling: &ThrottlingConfig{
 			interval: 1 * time.Hour,
@@ -73,7 +75,7 @@ func TestFiles(t *testing.T) {
 	}
 
 	if !reflect.DeepEqual(cfg, expected) {
-		t.Errorf("Expected %q but got %q", expected, cfg)
+		t.Errorf("Expected %+v but got %+v", expected, cfg)
 	}
 }
 
@@ -93,6 +95,7 @@ func TestLoadFile(t *testing.T) {
 			expected: &Config{
 				awx: &AWXConfig{
 					jobStatusCheckInterval: time.Duration(5) * time.Minute,
+					ca: new(bytes.Buffer),
 				},
 				throttling: &ThrottlingConfig{
 					interval: time.Duration(1) * time.Hour,
@@ -116,12 +119,13 @@ func TestLoadFile(t *testing.T) {
 					address: "https://my-awx.example.com/api",
 					proxy:   "http://my-proxy.example.com:3128",
 					jobStatusCheckInterval: time.Duration(5) * time.Minute,
+					ca: new(bytes.Buffer),
 				},
 				throttling: &ThrottlingConfig{
 					interval: time.Duration(1) * time.Hour,
 				},
 				rules: []*autoheal.HealingRule{
-					&autoheal.HealingRule{
+					{
 						ObjectMeta: meta.ObjectMeta{
 							Name: "start-node",
 						},
@@ -157,12 +161,13 @@ func TestLoadFile(t *testing.T) {
 					proxy:                  "http://my-proxy.example.com:3128",
 					project:                "Test Project",
 					jobStatusCheckInterval: time.Duration(3) * time.Minute,
+					ca: new(bytes.Buffer),
 				},
 				throttling: &ThrottlingConfig{
 					interval: time.Duration(1) * time.Hour,
 				},
 				rules: []*autoheal.HealingRule{
-					&autoheal.HealingRule{
+					{
 						ObjectMeta: meta.ObjectMeta{
 							Name: "start-node",
 						},
@@ -219,12 +224,13 @@ func TestLoadFile(t *testing.T) {
 					proxy:                  "http://my-proxy.example.com:3128",
 					project:                "Test Project",
 					jobStatusCheckInterval: time.Duration(3) * time.Minute,
+					ca: new(bytes.Buffer),
 				},
 				throttling: &ThrottlingConfig{
 					interval: time.Duration(1) * time.Hour,
 				},
 				rules: []*autoheal.HealingRule{
-					&autoheal.HealingRule{
+					{
 						ObjectMeta: meta.ObjectMeta{
 							Name: "start-node",
 						},
@@ -235,7 +241,7 @@ func TestLoadFile(t *testing.T) {
 							Template: "Start node",
 						},
 					},
-					&autoheal.HealingRule{
+					{
 						ObjectMeta: meta.ObjectMeta{
 							Name: "say-hello",
 						},
@@ -255,7 +261,7 @@ func TestLoadFile(t *testing.T) {
 								Template: core.PodTemplateSpec{
 									Spec: core.PodSpec{
 										Containers: []core.Container{
-											core.Container{
+											{
 												Name:    "python",
 												Image:   "python",
 												Command: []string{"python", "-c", `print("Hello {{ $labels.name }}!")`},
@@ -283,7 +289,7 @@ func TestLoadFile(t *testing.T) {
 		}
 
 		if !reflect.DeepEqual(cfg, test.expected) {
-			t.Errorf("Expected %q but got %q", test.expected, cfg)
+			t.Errorf("Expected %+v but got %+v", test.expected, cfg)
 		}
 	}
 }
@@ -315,12 +321,13 @@ func TestLoadDir(t *testing.T) {
 			address: "https://my-awx.example.com/api",
 			proxy:   "http://my-proxy.example.com:3128",
 			jobStatusCheckInterval: time.Duration(5) * time.Minute,
+			ca: new(bytes.Buffer),
 		},
 		throttling: &ThrottlingConfig{
 			interval: time.Duration(1) * time.Hour,
 		},
 		rules: []*autoheal.HealingRule{
-			&autoheal.HealingRule{
+			{
 				ObjectMeta: meta.ObjectMeta{
 					Name: "start-node",
 				},
@@ -346,6 +353,6 @@ func TestLoadDir(t *testing.T) {
 	}
 
 	if !reflect.DeepEqual(cfg, expected) {
-		t.Errorf("Expected %q but got %q", expected, cfg)
+		t.Errorf("Expected %+v but got %+v", expected, cfg)
 	}
 }
