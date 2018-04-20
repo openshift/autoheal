@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package main
+package receiver
 
 import (
 	"bytes"
@@ -33,9 +33,9 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/util/workqueue"
 
-	"github.com/openshift/autoheal/pkg/alertmanager"
 	"github.com/openshift/autoheal/pkg/config"
 	"github.com/openshift/autoheal/pkg/memory"
+	"github.com/openshift/autoheal/pkg/receiver/alertmanager"
 )
 
 // HealerBuilder is used to create new healers.

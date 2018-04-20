@@ -18,7 +18,7 @@ limitations under the License.
 // iterating an object and replacing all the strings that it contains with the result of evaluating
 // them as templates.
 
-package main
+package receiver
 
 import (
 	"bytes"

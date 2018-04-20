@@ -11,7 +11,7 @@
 #   build-cross: Build the cross compiled release binaries.
 #   build-rpms: Build RPMs only for the Linux AMD64 target.
 #   build-images: Build images from the official RPMs.
-#   run-dev: Run autoheal server using dev defaults.
+#   run-dev: Run autoheal receiver using dev defaults.
 
 OUT_DIR = _output
 OS_OUTPUT_GOPATH ?= 1
@@ -129,7 +129,7 @@ build-images: build-rpms
 .PHONY: build-images
 
 
-# Run autoheal server using dev defaults.
+# Run autoheal receiver using dev defaults.
 #
 # Example:
 #   make run-dev

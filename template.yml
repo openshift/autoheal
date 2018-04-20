@@ -197,7 +197,7 @@ objects:
           command:
           - /usr/bin/autoheal
           args:
-          - server
+          - receiver
           - --config-file=/etc/autoheal/config.d
           - --logtostderr
 

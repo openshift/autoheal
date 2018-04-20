@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# This script sets up a go workspace locally and run the autoheal server.
+# This script sets up a go workspace locally and run the autoheal receiver.
 source "$(dirname "${BASH_SOURCE}")/lib/init.sh"
 
 # Get host plataform
@@ -14,5 +14,5 @@ else
 	binary=("${binary}")
 fi
 
-# Run autoheal server using dev defaults
+# Run autoheal receiver using dev defaults
 "${binary}" server --config-file=examples/autoheal-dev.yml --logtostderr

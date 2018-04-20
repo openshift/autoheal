@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package main
+package receiver
 
 import (
 	"fmt"
@@ -25,8 +25,8 @@ import (
 	batch "k8s.io/api/batch/v1"
 	"k8s.io/apimachinery/pkg/util/runtime"
 
-	"github.com/openshift/autoheal/pkg/alertmanager"
 	"github.com/openshift/autoheal/pkg/apis/autoheal"
+	"github.com/openshift/autoheal/pkg/receiver/alertmanager"
 )
 
 func (h *Healer) runAlertsWorker() {

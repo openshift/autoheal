@@ -14,16 +14,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package main
+package receiver
 
 import (
 	"path/filepath"
 	"testing"
 	"time"
 
-	"github.com/openshift/autoheal/pkg/alertmanager"
 	"github.com/openshift/autoheal/pkg/apis/autoheal"
 	"github.com/openshift/autoheal/pkg/memory"
+	"github.com/openshift/autoheal/pkg/receiver/alertmanager"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 )

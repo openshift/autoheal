@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package main
+package receiver
 
 import (
 	"os"
@@ -32,36 +32,36 @@ import (
 
 // Values of the command line options:
 var (
-	serverKubeAddress string
-	serverKubeConfig  string
-	serverConfigFiles []string
+	kubeAddress string
+	kubeConfig  string
+	configFiles []string
 )
 
-var serverCmd = &cobra.Command{
-	Use:   "server",
-	Short: "Starts the auto-heal server",
-	Long:  "Starts the auto-heal server.",
-	Run:   serverRun,
+var Cmd = &cobra.Command{
+	Use:   "receiver",
+	Short: "Starts the auto-heal Prometheus alert receiver",
+	Long:  "Starts the auto-heal Prometheus alert receiver.",
+	Run:   run,
 }
 
 func init() {
-	serverFlags := serverCmd.Flags()
-	serverFlags.StringVar(
-		&serverKubeConfig,
+	flags := Cmd.Flags()
+	flags.StringVar(
+		&kubeConfig,
 		"kubeconfig",
 		filepath.Join(homedir.HomeDir(), ".kube", "config"),
 		"Path to a Kubernetes client configuration file. Only required when running "+
 			"outside of a cluster.",
 	)
-	serverFlags.StringVar(
-		&serverKubeAddress,
+	flags.StringVar(
+		&kubeAddress,
 		"master",
 		"",
 		"The address of the Kubernetes API server. Overrides any value in the Kubernetes "+
 			"configuration file. Only required when running outside of a cluster.",
 	)
-	serverFlags.StringSliceVar(
-		&serverConfigFiles,
+	flags.StringSliceVar(
+		&configFiles,
 		"config-file",
 		[]string{"autoheal.yml"},
 		"The location of the configuration file. Can be used multiple times to specify "+
@@ -72,7 +72,7 @@ func init() {
 	)
 }
 
-func serverRun(cmd *cobra.Command, args []string) {
+func run(cmd *cobra.Command, args []string) {
 	var err error
 
 	// Set up signals so we handle the first shutdown signal gracefully:
@@ -80,12 +80,12 @@ func serverRun(cmd *cobra.Command, args []string) {
 
 	// Load the Kubernetes configuration:
 	var config *rest.Config
-	_, err = os.Stat(serverKubeConfig)
+	_, err = os.Stat(kubeConfig)
 	if os.IsNotExist(err) {
 		glog.Infof(
 			"The Kubernetes configuration file '%s' doesn't exist, will try to use the "+
 				"in-cluster configuration",
-			serverKubeConfig,
+			kubeConfig,
 		)
 		config, err = rest.InClusterConfig()
 		if err != nil {
@@ -95,11 +95,11 @@ func serverRun(cmd *cobra.Command, args []string) {
 			)
 		}
 	} else {
-		config, err = clientcmd.BuildConfigFromFlags(serverKubeAddress, serverKubeConfig)
+		config, err = clientcmd.BuildConfigFromFlags(kubeAddress, kubeConfig)
 		if err != nil {
 			glog.Fatalf(
 				"Error loading REST client configuration from file '%s': %s",
-				serverKubeConfig,
+				kubeConfig,
 				err.Error(),
 			)
 		}
@@ -113,7 +113,7 @@ func serverRun(cmd *cobra.Command, args []string) {
 
 	// Build the healer:
 	healer, err := NewHealerBuilder().
-		ConfigFiles(serverConfigFiles).
+		ConfigFiles(configFiles).
 		KubernetesClient(k8sClient).
 		Build()
 	if err != nil {

@@ -31,7 +31,7 @@ Assuming that you want to have your own `my.yml` configuration file a typical
 command line will be the following:
 
 ```bash
-$ autoheal server --config-file=my.yml --logtostderr
+$ autoheal receiver --config-file=my.yml --logtostderr
 ```
 
 See the `autoheal.yml` file for a complete example.
@@ -105,7 +105,7 @@ credentials:
   password: "..."
 .
 $ chmod u=r,g=,o= credentials.yml
-$ autoheal server --config-file=general.yml --config-file=credentials.yml
+$ autoheal receiver --config-file=general.yml --config-file=credentials.yml
 
 ```
 
@@ -345,7 +345,7 @@ files that are inside the `examples` directory. For example, to simulate the
 send the alert notification:
 
 ```
-$ autoheal server --config-file=my.yml --logtostderr
+$ autoheal receiver --config-file=my.yml --logtostderr
 $ curl --data @examples/node-down-alert.json http://localhost:9099/alerts
 ```
 

@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package main
+package receiver
 
 import (
 	"fmt"
@@ -22,8 +22,8 @@ import (
 	"github.com/golang/glog"
 
 	"github.com/moolitayer/awx-client-go/awx"
-	"github.com/openshift/autoheal/pkg/alertmanager"
 	"github.com/openshift/autoheal/pkg/apis/autoheal"
+	"github.com/openshift/autoheal/pkg/receiver/alertmanager"
 )
 
 func (h *Healer) runAWXJob(rule *autoheal.HealingRule, action *autoheal.AWXJobAction, alert *alertmanager.Alert) error {
