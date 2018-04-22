@@ -10,6 +10,13 @@ import (
 )
 
 var (
+	actionsRequested = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "autoheal_actions_requested_total",
+			Help: "Number of requested healing actions(including rate limited)",
+		},
+		[]string{"type", "rule", "alert"},
+	)
 	actionsInitiated = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "autoheal_actions_initiated_total",
@@ -24,7 +31,7 @@ func (h *Healer) metricsHandler() http.Handler {
 }
 
 func (h *Healer) initExportedMetrics() {
-	prometheus.MustRegister(actionsInitiated)
+	prometheus.MustRegister(actionsRequested, actionsInitiated)
 }
 
 func (h *Healer) incrementAwxActions(
@@ -36,6 +43,16 @@ func (h *Healer) incrementAwxActions(
 			"type":     "awxJob",
 			"template": action.Template,
 			"rule":     ruleName,
+		},
+	).Inc()
+}
+
+func (h *Healer) actionRequested(actionType, rule, alert string) {
+	actionsRequested.With(
+		map[string]string{
+			"type":  actionType,
+			"rule":  rule,
+			"alert": alert,
 		},
 	).Inc()
 }

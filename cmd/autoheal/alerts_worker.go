@@ -18,6 +18,7 @@ package main
 
 import (
 	"fmt"
+	"reflect"
 	"regexp"
 
 	"github.com/golang/glog"
@@ -191,6 +192,13 @@ func (h *Healer) runRule(rule *autoheal.HealingRule, alert *alertmanager.Alert) 
 		)
 		return nil
 	}
+
+	// Increment the metric of requested heales.
+	h.actionRequested(
+		reflect.TypeOf(action).Elem().Name(),
+		rule.ObjectMeta.Name,
+		alert.Labels["alertname"],
+	)
 
 	// Process the templates inside the action:
 	template, err := NewObjectTemplateBuilder().
