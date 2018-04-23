@@ -4,9 +4,13 @@
 #   all: Build code.
 #   build: Build code.
 #   check: Run verify, build, unit tests and cmd tests.
-#   test: Run all tests.
-#   run: Run all-in-one server
+#   verify: Verify code conventions are properly setup.
+#   verify-commits: Verify commit comments.
+#   test-unit: Run unit tests.
 #   clean: Clean up.
+#   build-cross: Build the cross compiled release binaries.
+#   build-rpms: Build RPMs only for the Linux AMD64 target.
+#   build-images: Build images from the official RPMs.
 
 OUT_DIR = _output
 OS_OUTPUT_GOPATH ?= 1
@@ -114,7 +118,7 @@ build-rpms:
 .PHONY: build-rpms
 
 # Build images from the official RPMs
-# 
+#
 # Args:
 #
 # Example:
