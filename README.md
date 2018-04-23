@@ -316,3 +316,25 @@ In order to use the AWX API the auto-heal service uses a Go AWX client that is
 part of this repository, but that will be likely moved to a separate repository
 in the future. The code is in the [pkg/awx](pkg/awx) directory, and there is a
 collection of examples in the [examples/awx](examples/awx) directory.
+
+## Development
+
+If needed development can be done without an OpenShift cluster, simulating
+OpenShift's alert manager using curl commands.
+
+In the examples dir we have examples of firing alerts and a configuration file
+that does not require a connection to a working OpenShift cluster.
+
+To run autoheal in dev mode (without a running OpenShift cluster) developers can
+use the dev config file in the examples dir.
+
+To simulate alerts firing, developers can use the example alerts.
+
+```
+$ make build
+$ make run-dev
+```
+
+```
+$ curl --data @examples/node-down-alert.json http://localhost:9099/alerts
+```

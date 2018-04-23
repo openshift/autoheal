@@ -1,0 +1,61 @@
+#
+# Copyright (c) 2018 Red Hat, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+awx:
+  address: http://127.0.0.1:8080/api
+
+  credentials:
+    username: my-user
+    password: my-password
+
+  project: "My project"
+
+throttling:
+  interval: 5s
+
+rules:
+- metadata:
+    name: start-node
+  labels:
+    alertname: "NodeDown"
+  awxJob:
+    template: "Start node"
+    extraVars: |-
+      {
+        "node": "{{ $labels.instance }}"
+      }
+
+- metadata:
+    name: say-hello
+  labels:
+    alertname: "NewFriend"
+  batchJob:
+    apiVersion: batch/v1
+    kind: Job
+    metadata:
+      namespace: default
+      name: hello
+    spec:
+      template:
+        spec:
+          containers:
+          - name: python
+            image: python
+            command:
+            - python
+            - -c
+            - print("Hello {{ $labels.name }}!")
+          restartPolicy: Never
