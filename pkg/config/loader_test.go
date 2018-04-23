@@ -68,6 +68,7 @@ func TestFiles(t *testing.T) {
 		throttling: &ThrottlingConfig{
 			interval: 1 * time.Hour,
 		},
+		configFiles: []string{file0.Name(), file1.Name()},
 	}
 
 	if err != nil {
@@ -100,6 +101,7 @@ func TestLoadFile(t *testing.T) {
 				throttling: &ThrottlingConfig{
 					interval: time.Duration(1) * time.Hour,
 				},
+				configFiles: []string{file.Name()},
 			},
 		},
 		{
@@ -124,6 +126,7 @@ func TestLoadFile(t *testing.T) {
 				throttling: &ThrottlingConfig{
 					interval: time.Duration(1) * time.Hour,
 				},
+				configFiles: []string{file.Name()},
 				rules: []*autoheal.HealingRule{
 					{
 						ObjectMeta: meta.ObjectMeta{
@@ -166,6 +169,7 @@ func TestLoadFile(t *testing.T) {
 				throttling: &ThrottlingConfig{
 					interval: time.Duration(1) * time.Hour,
 				},
+				configFiles: []string{file.Name()},
 				rules: []*autoheal.HealingRule{
 					{
 						ObjectMeta: meta.ObjectMeta{
@@ -229,6 +233,7 @@ func TestLoadFile(t *testing.T) {
 				throttling: &ThrottlingConfig{
 					interval: time.Duration(1) * time.Hour,
 				},
+				configFiles: []string{file.Name()},
 				rules: []*autoheal.HealingRule{
 					{
 						ObjectMeta: meta.ObjectMeta{
@@ -300,7 +305,8 @@ func TestLoadDir(t *testing.T) {
 	dir, _ := ioutil.TempDir("", "temp_dir")
 	file, _ := ioutil.TempFile(dir, filename)
 
-	os.Rename(file.Name(), strings.Join([]string{file.Name(), ".yml"}, ""))
+	newFileName := strings.Join([]string{file.Name(), ".yml"}, "")
+	os.Rename(file.Name(), newFileName)
 
 	defer os.RemoveAll(dir)
 
@@ -326,6 +332,7 @@ func TestLoadDir(t *testing.T) {
 		throttling: &ThrottlingConfig{
 			interval: time.Duration(1) * time.Hour,
 		},
+		configFiles: []string{newFileName},
 		rules: []*autoheal.HealingRule{
 			{
 				ObjectMeta: meta.ObjectMeta{

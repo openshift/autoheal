@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/golang/glog"
@@ -34,6 +35,7 @@ import (
 	"k8s.io/client-go/util/workqueue"
 
 	"github.com/openshift/autoheal/pkg/alertmanager"
+	"github.com/openshift/autoheal/pkg/apis/autoheal"
 	"github.com/openshift/autoheal/pkg/awxrunner"
 	"github.com/openshift/autoheal/pkg/batchrunner"
 	"github.com/openshift/autoheal/pkg/config"
@@ -55,6 +57,9 @@ type HealerBuilder struct {
 // Prometheus configuration and to start or reload it when there are changes.
 //
 type Healer struct {
+	// The configuration loader.
+	loader *config.Loader
+
 	// The configuration.
 	config *config.Config
 
@@ -74,6 +79,9 @@ type Healer struct {
 
 	// a map of ActionRunner which run awx/batch/etc actions.
 	actionRunners map[ActionRunnerType]ActionRunner
+
+	// Mutex to prevent simultaneous reloads of configuration.
+	reloadMutex *sync.Mutex
 }
 
 // NewHealerBuilder creates a new builder for healers.
@@ -117,13 +125,15 @@ func (b *HealerBuilder) Build() (h *Healer, err error) {
 		err = fmt.Errorf("No configuration file has been provided")
 		return
 	}
-	config, err := config.NewLoader().
+	loader := config.NewLoader().
 		Client(b.k8sClient).
-		Files(b.configFiles).
-		Load()
+		Files(b.configFiles)
+	config, err := loader.Load()
 	if err != nil {
 		return
 	}
+	// Start watching for changes in config files
+	config.Watch()
 
 	// Send to the log a summary of the configuration:
 	glog.Infof("AWX user is '%s'", config.AWX().User())
@@ -140,6 +150,7 @@ func (b *HealerBuilder) Build() (h *Healer, err error) {
 	// Allocate the healer:
 	h = new(Healer)
 	h.k8sClient = b.k8sClient
+	h.loader = loader
 	h.config = config
 	h.actionMemory = actionMemory
 
@@ -152,6 +163,9 @@ func (b *HealerBuilder) Build() (h *Healer, err error) {
 
 	// allocate new action runners
 	h.actionRunners = make(map[ActionRunnerType]ActionRunner)
+
+	// initialize the reload mutex
+	h.reloadMutex = &sync.Mutex{}
 
 	return
 }
@@ -191,6 +205,64 @@ func (h *Healer) Run(stopCh <-chan struct{}) error {
 
 	glog.Info("Workers started")
 
+	// Load rules cache from config
+	h.reloadRulesCache()
+
+	// Start the web server:
+	http.Handle("/metrics", metrics.Handler())
+	http.HandleFunc("/alerts", h.handleRequest)
+
+	server := &http.Server{Addr: ":9099"}
+	go server.ListenAndServe()
+	glog.Info("Web server started")
+
+	// Add a listener that will reload the config files
+	// on config file modification.
+	h.config.AddChangeListener(func(e *config.ChangeEvent) {
+		h.onChangeEvent(e)
+	})
+	defer h.config.CloseChangeObserver()
+
+	// Wait till we are requested to stop:
+	<-stopCh
+
+	// Shutdown the web server:
+	err = server.Shutdown(context.TODO())
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// onChangeEvent reload config files and
+// refresh rules in rules cache (by sending "Deleted" + "Added" to queue).
+//
+func (h *Healer) onChangeEvent(e *config.ChangeEvent) {
+	h.reloadMutex.Lock()
+
+	glog.Info("Event: Config file modified")
+	h.loader.Load()
+	h.reloadRulesCache()
+
+	h.reloadMutex.Unlock()
+}
+
+// Reload all rules in rules cache (by sending "Deleted" + "Added" to queue).
+//
+func (h *Healer) reloadRulesCache() {
+	// Send Delete signal to all rules currently in rules cache:
+	h.rulesCache.Range(func(key, value interface{}) bool {
+		rule := value.(*autoheal.HealingRule)
+		change := &RuleChange{
+			Type: watch.Deleted,
+			Rule: rule,
+		}
+		h.rulesQueue.Add(change)
+
+		return true
+	})
+
 	// For each rule inside the configuration create a change and add it to the queue:
 	rules := h.config.Rules()
 	if len(rules) > 0 {
@@ -205,25 +277,6 @@ func (h *Healer) Run(stopCh <-chan struct{}) error {
 	} else {
 		glog.Warningf("There are no healing rules in the configuration")
 	}
-
-	// Start the web server:
-	http.Handle("/metrics", metrics.Handler())
-	http.HandleFunc("/alerts", h.handleRequest)
-
-	server := &http.Server{Addr: ":9099"}
-	go server.ListenAndServe()
-	glog.Info("Web server started")
-
-	// Wait till we are requested to stop:
-	<-stopCh
-
-	// Shutdown the web server:
-	err = server.Shutdown(context.TODO())
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
 func (h *Healer) handleRequest(response http.ResponseWriter, request *http.Request) {
