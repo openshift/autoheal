@@ -162,6 +162,15 @@
   version = "v1.0.0"
 
 [[projects]]
+  name = "github.com/moolitayer/awx-client-go"
+  packages = [
+    "awx",
+    "awx/internal/data"
+  ]
+  revision = "4e1eac42a9a4ddb87f97b5287589f9a98ab21070"
+  version = "0.0.1"
+
+[[projects]]
   name = "github.com/openshift/origin"
   packages = [
     "tools/junitreport/pkg/api",
@@ -443,6 +452,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "6466927d411da90408c5f49d4d9d97b3995bdca726fd49e4bdf657df5095f345"
+  inputs-digest = "e60093e28a841721b73e6e6cc99b249728e1e762e7f283a1d3496cd5c785808d"
   solver-name = "gps-cdcl"
   solver-version = 1
