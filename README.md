@@ -319,14 +319,14 @@ collection of examples in the [examples/awx](examples/awx) directory.
 
 ## Development
 
-If needed development can be done without an OpenShift cluster, simulating
-OpenShift's alert manager using curl commands.
+If needed for development, we can run the server without an OpenShift cluster,
+simulating OpenShift's alert manager using curl commands.
 
-In the examples dir we have examples of firing alerts and a configuration file
+In the examples dir we have examples of firing alerts, and a configuration file
 that does not require a connection to a working OpenShift cluster.
 
-To run autoheal in dev mode (without a running OpenShift cluster) developers can
-use the dev config file in the examples dir.
+To run autoheal in dev mode (without a running OpenShift cluster) developers
+can use the dev config file in the examples dir.
 
 To simulate alerts firing, developers can use the example alerts.
 
@@ -337,4 +337,13 @@ $ make run-dev
 
 ```
 $ curl --data @examples/node-down-alert.json http://localhost:9099/alerts
+```
+
+When developing features that does not require AWX server, developers can use
+a mock-awx server from the examples dir. The mock server will listen on port
+8080.
+
+```
+$ cd examples/mock-awx
+$ go run mock-awx.go
 ```
