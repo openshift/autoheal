@@ -133,6 +133,6 @@ build-images: build-rpms
 #
 # Example:
 #   make run-dev
-run-dev: build
+run-dev:
 	hack/run-dev.sh
 .PHONY: run-dev
