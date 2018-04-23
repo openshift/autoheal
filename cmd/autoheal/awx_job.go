@@ -21,9 +21,9 @@ import (
 
 	"github.com/golang/glog"
 
+	awx "github.com/moolitayer/awx-client-go/awx"
 	alertmanager "github.com/openshift/autoheal/pkg/alertmanager"
 	autoheal "github.com/openshift/autoheal/pkg/apis/autoheal/v1alpha2"
-	awx "github.com/openshift/autoheal/pkg/awx"
 )
 
 func (h *Healer) runAWXJob(rule *autoheal.HealingRule, action *autoheal.AWXJobAction, alert *alertmanager.Alert) error {

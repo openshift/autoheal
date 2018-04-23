@@ -15,74 +15,71 @@ limitations under the License.
 */
 
 // This file contains the implementation of the resource that manages the collection of
-// projects.
+// job templates.
 
 package awx
 
 import (
 	"fmt"
 
-	"github.com/openshift/autoheal/pkg/awx/internal/data"
+	"github.com/moolitayer/awx-client-go/awx/internal/data"
 )
 
-type ProjectsResource struct {
+type JobTemplatesResource struct {
 	Resource
 }
 
-func NewProjectsResource(connection *Connection, path string) *ProjectsResource {
-	resource := new(ProjectsResource)
+func NewJobTemplatesResource(connection *Connection, path string) *JobTemplatesResource {
+	resource := new(JobTemplatesResource)
 	resource.connection = connection
 	resource.path = path
 	return resource
 }
 
-func (r *ProjectsResource) Get() *ProjectsGetRequest {
-	request := new(ProjectsGetRequest)
+func (r *JobTemplatesResource) Get() *JobTemplatesGetRequest {
+	request := new(JobTemplatesGetRequest)
 	request.resource = &r.Resource
 	return request
 }
 
-func (r *ProjectsResource) Id(id int) *ProjectResource {
-	return NewProjectResource(r.connection, fmt.Sprintf("%s/%d", r.path, id))
+func (r *JobTemplatesResource) Id(id int) *JobTemplateResource {
+	return NewJobTemplateResource(r.connection, fmt.Sprintf("%s/%d", r.path, id))
 }
 
-type ProjectsGetRequest struct {
+type JobTemplatesGetRequest struct {
 	Request
 }
 
-func (r *ProjectsGetRequest) Filter(name string, value interface{}) *ProjectsGetRequest {
+func (r *JobTemplatesGetRequest) Filter(name string, value interface{}) *JobTemplatesGetRequest {
 	r.addFilter(name, value)
 	return r
 }
 
-func (r *ProjectsGetRequest) Send() (response *ProjectsGetResponse, err error) {
-	output := new(data.ProjectsGetResponse)
+func (r *JobTemplatesGetRequest) Send() (response *JobTemplatesGetResponse, err error) {
+	output := new(data.JobTemplatesGetResponse)
 	err = r.get(output)
 	if err != nil {
 		return
 	}
-	response = new(ProjectsGetResponse)
+	response = new(JobTemplatesGetResponse)
 	response.count = output.Count
 	response.previous = output.Previous
 	response.next = output.Next
-	response.results = make([]*Project, len(output.Results))
+	response.results = make([]*JobTemplate, len(output.Results))
 	for i := 0; i < len(output.Results); i++ {
-		response.results[i] = new(Project)
+		response.results[i] = new(JobTemplate)
 		response.results[i].id = output.Results[i].Id
 		response.results[i].name = output.Results[i].Name
-		response.results[i].scmType = output.Results[i].SCMType
-		response.results[i].scmURL = output.Results[i].SCMURL
-		response.results[i].scmBranch = output.Results[i].SCMBranch
 	}
 	return
 }
 
-type ProjectsGetResponse struct {
+type JobTemplatesGetResponse struct {
 	ListGetResponse
 
-	results []*Project
+	results []*JobTemplate
 }
 
-func (r *ProjectsGetResponse) Results() []*Project {
+func (r *JobTemplatesGetResponse) Results() []*JobTemplate {
 	return r.results
 }

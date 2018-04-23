@@ -30,3 +30,7 @@
   go-tests = true
   non-go = true
   unused-packages = true
+
+[[constraint]]
+  name = "github.com/moolitayer/awx-client-go"
+  version = "0.0.1"

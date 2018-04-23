@@ -19,7 +19,7 @@ limitations under the License.
 package awx
 
 import (
-	"github.com/openshift/autoheal/pkg/awx/internal/data"
+	"github.com/moolitayer/awx-client-go/awx/internal/data"
 )
 
 type ProjectResource struct {
