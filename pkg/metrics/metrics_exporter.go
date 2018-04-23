@@ -1,4 +1,4 @@
-package main
+package metrics
 
 import (
 	"net/http"
@@ -24,15 +24,19 @@ var (
 	)
 )
 
-func (h *Healer) metricsHandler() http.Handler {
+// Handle /metrics requsts, retrun a list of all exported metrics
+//
+func Handler() http.Handler {
 	return promhttp.Handler()
 }
 
-func (h *Healer) initExportedMetrics() {
+// Init autoheal prometheus exported metrics
+//
+func InitExportedMetrics() {
 	prometheus.MustRegister(actionsRequested, actionsLaunched)
 }
 
-func (h *Healer) actionStarted(
+func ActionStarted(
 	actionType,
 	templateName,
 	ruleName string,
@@ -47,7 +51,7 @@ func (h *Healer) actionStarted(
 	).Inc()
 }
 
-func (h *Healer) actionCompleted(
+func ActionCompleted(
 	actionType,
 	templateName,
 	ruleName string,
@@ -70,7 +74,7 @@ func (h *Healer) actionCompleted(
 	).Inc()
 }
 
-func (h *Healer) actionRequested(actionType, rule, alert string) {
+func ActionRequested(actionType, rule, alert string) {
 	actionsRequested.With(
 		map[string]string{
 			"type":  actionType,

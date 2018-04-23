@@ -34,8 +34,11 @@ import (
 	"k8s.io/client-go/util/workqueue"
 
 	"github.com/openshift/autoheal/pkg/alertmanager"
+	"github.com/openshift/autoheal/pkg/awxrunner"
+	"github.com/openshift/autoheal/pkg/batchrunner"
 	"github.com/openshift/autoheal/pkg/config"
 	"github.com/openshift/autoheal/pkg/memory"
+	"github.com/openshift/autoheal/pkg/metrics"
 )
 
 // HealerBuilder is used to create new healers.
@@ -69,8 +72,8 @@ type Healer struct {
 	// Executed actions will be stored here in order to prevent repeated execution.
 	actionMemory *memory.ShortTermMemory
 
-	// The AWX active jobs
-	activeJobs *syncmap.Map
+	// a map of ActionRunner which run awx/batch/etc actions.
+	actionRunners map[ActionRunnerType]ActionRunner
 }
 
 // NewHealerBuilder creates a new builder for healers.
@@ -147,8 +150,9 @@ func (b *HealerBuilder) Build() (h *Healer, err error) {
 	h.rulesQueue = workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "rules")
 	h.alertsQueue = workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "alerts")
 
-	// initialize active jobs map:
-	h.activeJobs = new(syncmap.Map)
+	// allocate new action runners
+	h.actionRunners = make(map[ActionRunnerType]ActionRunner)
+
 	return
 }
 
@@ -162,7 +166,29 @@ func (h *Healer) Run(stopCh <-chan struct{}) error {
 	// Start the workers:
 	go wait.Until(h.runRulesWorker, time.Second, stopCh)
 	go wait.Until(h.runAlertsWorker, time.Second, stopCh)
-	go wait.Until(h.runActiveJobsWorker, h.config.AWX().JobStatusCheckInterval(), stopCh)
+
+	// Start action runners
+	awxRunner, err := awxrunner.NewBuilder().
+		Config(h.config.AWX()).
+		StopCh(stopCh).
+		Build()
+
+	if err != nil {
+		glog.Warningf("Error building AWX Runner: %s", err)
+	}
+
+	batchRunner, err := batchrunner.NewBuilder().
+		KuberenetesClient(h.k8sClient).
+		Build()
+
+	if err != nil {
+		glog.Warningf("Error building Batch Runner: %s", err)
+	}
+
+	// initiailize runners.
+	h.actionRunners[ActionRunnerTypeAWX] = awxRunner
+	h.actionRunners[ActionRunnerTypeBatch] = batchRunner
+
 	glog.Info("Workers started")
 
 	// For each rule inside the configuration create a change and add it to the queue:
@@ -181,7 +207,7 @@ func (h *Healer) Run(stopCh <-chan struct{}) error {
 	}
 
 	// Start the web server:
-	http.Handle("/metrics", h.metricsHandler())
+	http.Handle("/metrics", metrics.Handler())
 	http.HandleFunc("/alerts", h.handleRequest)
 
 	server := &http.Server{Addr: ":9099"}
@@ -192,7 +218,7 @@ func (h *Healer) Run(stopCh <-chan struct{}) error {
 	<-stopCh
 
 	// Shutdown the web server:
-	err := server.Shutdown(context.TODO())
+	err = server.Shutdown(context.TODO())
 	if err != nil {
 		return err
 	}

@@ -14,31 +14,31 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package main
+package awxrunner
 
 import (
 	"github.com/golang/glog"
-	"k8s.io/apimachinery/pkg/util/runtime"
-
 	"github.com/openshift/autoheal/pkg/apis/autoheal"
+	"github.com/openshift/autoheal/pkg/metrics"
+	"k8s.io/apimachinery/pkg/util/runtime"
 )
 
-func (h *Healer) runActiveJobsWorker() {
+func (r *Runner) runActiveJobsWorker() {
 	glog.Infof("Going over active jobs queue.")
 
 	finishedJobs := make([]int, 0)
 
-	h.activeJobs.Range(func(key interface{}, value interface{}) bool {
+	r.activeJobs.Range(func(key interface{}, value interface{}) bool {
 		id := key.(int)
 		rule := value.(*autoheal.HealingRule)
-		finished, err := h.checkAWXJobStatus(id)
+		finished, err := r.checkAWXJobStatus(id)
 		if err != nil {
 			runtime.HandleError(err)
 		}
 
 		if finished {
 			finishedJobs = append(finishedJobs, id)
-			h.actionCompleted(
+			metrics.ActionCompleted(
 				"AWXJob",
 				rule.AWXJob.Template,
 				rule.ObjectMeta.Name,
@@ -53,6 +53,6 @@ func (h *Healer) runActiveJobsWorker() {
 			"Removing finished job `%v` from queue ",
 			job,
 		)
-		h.activeJobs.Delete(job)
+		r.activeJobs.Delete(job)
 	}
 }

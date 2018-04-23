@@ -22,11 +22,11 @@ import (
 	"regexp"
 
 	"github.com/golang/glog"
-	batch "k8s.io/api/batch/v1"
-	"k8s.io/apimachinery/pkg/util/runtime"
-
 	"github.com/openshift/autoheal/pkg/alertmanager"
 	"github.com/openshift/autoheal/pkg/apis/autoheal"
+	"github.com/openshift/autoheal/pkg/metrics"
+	batch "k8s.io/api/batch/v1"
+	"k8s.io/apimachinery/pkg/util/runtime"
 )
 
 func (h *Healer) runAlertsWorker() {
@@ -194,7 +194,7 @@ func (h *Healer) runRule(rule *autoheal.HealingRule, alert *alertmanager.Alert) 
 	}
 
 	// Increment the metric of requested heales.
-	h.actionRequested(
+	metrics.ActionRequested(
 		reflect.TypeOf(action).Elem().Name(),
 		rule.ObjectMeta.Name,
 		alert.Labels["alertname"],
@@ -227,9 +227,9 @@ func (h *Healer) runRule(rule *autoheal.HealingRule, alert *alertmanager.Alert) 
 	// Execute the action:
 	switch typed := action.(type) {
 	case *autoheal.AWXJobAction:
-		err = h.runAWXJob(rule, typed, alert)
+		err = h.actionRunners[ActionRunnerTypeAWX].RunAction(rule, typed, alert)
 	case *batch.Job:
-		err = h.runBatchJob(rule, typed, alert)
+		err = h.actionRunners[ActionRunnerTypeBatch].RunAction(rule, typed, alert)
 	default:
 		err = fmt.Errorf(
 			"Don't know how to execute action of type '%T'",

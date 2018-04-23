@@ -14,34 +14,73 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package main
+package awxrunner
 
 import (
 	"fmt"
 
 	"github.com/golang/glog"
+	"golang.org/x/sync/syncmap"
+	"k8s.io/apimachinery/pkg/util/wait"
 
 	"github.com/moolitayer/awx-client-go/awx"
 	"github.com/openshift/autoheal/pkg/alertmanager"
 	"github.com/openshift/autoheal/pkg/apis/autoheal"
+	"github.com/openshift/autoheal/pkg/config"
+	"github.com/openshift/autoheal/pkg/metrics"
 )
 
-func (h *Healer) runAWXJob(rule *autoheal.HealingRule, action *autoheal.AWXJobAction, alert *alertmanager.Alert) error {
-	var err error
+type Builder struct {
+	config *config.AWXConfig
 
+	stopCh <-chan struct{}
+}
+
+type Runner struct {
+	config *config.AWXConfig
+
+	activeJobs *syncmap.Map
+}
+
+func NewBuilder() *Builder {
+	return new(Builder)
+}
+
+func (b *Builder) Config(config *config.AWXConfig) *Builder {
+	b.config = config
+	return b
+}
+
+func (b *Builder) StopCh(stopCh <-chan struct{}) *Builder {
+	b.stopCh = stopCh
+	return b
+}
+
+func (b *Builder) Build() (*Runner, error) {
+	runner := &Runner{
+		config:     b.config,
+		activeJobs: new(syncmap.Map),
+	}
+	go wait.Until(runner.runActiveJobsWorker, runner.config.JobStatusCheckInterval(), b.stopCh)
+	return runner, nil
+}
+
+func (r *Runner) RunAction(rule *autoheal.HealingRule, action interface{}, alert *alertmanager.Alert) error {
+	var err error
+	awxAction := action.(*autoheal.AWXJobAction)
 	// Get the AWX connection details from the configuration:
-	awxAddress := h.config.AWX().Address()
-	awxProxy := h.config.AWX().Proxy()
-	awxUser := h.config.AWX().User()
-	awxPassword := h.config.AWX().Password()
-	awxCA := h.config.AWX().CA()
-	awxInsecure := h.config.AWX().Insecure()
+	awxAddress := r.config.Address()
+	awxProxy := r.config.Proxy()
+	awxUser := r.config.User()
+	awxPassword := r.config.Password()
+	awxCA := r.config.CA()
+	awxInsecure := r.config.Insecure()
 
 	// Get the name of the AWX project name from the configuration:
-	awxProject := h.config.AWX().Project()
+	awxProject := r.config.Project()
 
 	// Get the name of the AWX job template from the action:
-	awxTemplate := action.Template
+	awxTemplate := awxAction.Template
 
 	// Create the connection to the AWX server:
 	connection, err := awx.NewConnectionBuilder().
@@ -82,7 +121,7 @@ func (h *Healer) runAWXJob(rule *autoheal.HealingRule, action *autoheal.AWXJobAc
 		alert.Name(),
 	)
 	for _, template := range templatesResponse.Results() {
-		err := h.launchAWXJob(connection, template, action, rule, alert)
+		err := r.launchAWXJob(connection, template, awxAction, rule, alert)
 		if err != nil {
 			return err
 		}
@@ -91,7 +130,7 @@ func (h *Healer) runAWXJob(rule *autoheal.HealingRule, action *autoheal.AWXJobAc
 	return nil
 }
 
-func (h *Healer) launchAWXJob(
+func (r *Runner) launchAWXJob(
 	connection *awx.Connection,
 	template *awx.JobTemplate,
 	action *autoheal.AWXJobAction,
@@ -113,26 +152,26 @@ func (h *Healer) launchAWXJob(
 		templateName,
 		response.Job,
 	)
-	h.actionStarted(
+	metrics.ActionStarted(
 		"AWXJob",
 		templateName,
 		rule.ObjectMeta.Name,
 	)
 
 	// Add the job to active jobs map for tracking
-	h.activeJobs.Store(response.Job, rule)
+	r.activeJobs.Store(response.Job, rule)
 
 	return nil
 }
 
-func (h *Healer) checkAWXJobStatus(jobID int) (finished bool, err error) {
+func (r *Runner) checkAWXJobStatus(jobID int) (finished bool, err error) {
 	// Get the AWX connection details from the configuration:
-	awxAddress := h.config.AWX().Address()
-	awxProxy := h.config.AWX().Proxy()
-	awxUser := h.config.AWX().User()
-	awxPassword := h.config.AWX().Password()
-	awxCA := h.config.AWX().CA()
-	awxInsecure := h.config.AWX().Insecure()
+	awxAddress := r.config.Address()
+	awxProxy := r.config.Proxy()
+	awxUser := r.config.User()
+	awxPassword := r.config.Password()
+	awxCA := r.config.CA()
+	awxInsecure := r.config.Insecure()
 
 	// Create the connection to the AWX server:
 	connection, err := awx.NewConnectionBuilder().
