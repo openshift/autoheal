@@ -24,7 +24,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 
 	alertmanager "github.com/openshift/autoheal/pkg/alertmanager"
-	autoheal "github.com/openshift/autoheal/pkg/apis/autoheal/v1alpha2"
+	"github.com/openshift/autoheal/pkg/apis/autoheal"
 )
 
 func (h *Healer) runBatchJob(rule *autoheal.HealingRule, job *batch.Job, alert *alertmanager.Alert) error {

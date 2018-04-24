@@ -19,7 +19,7 @@ package main
 import (
 	"k8s.io/apimachinery/pkg/watch"
 
-	autoheal "github.com/openshift/autoheal/pkg/apis/autoheal/v1alpha2"
+	"github.com/openshift/autoheal/pkg/apis/autoheal"
 )
 
 // RuleChange contains information describing a change that happened to a healing rule.

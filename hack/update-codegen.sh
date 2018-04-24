@@ -17,7 +17,7 @@
 #
 
 vendor/k8s.io/code-generator/generate-internal-groups.sh \
-deepcopy-gen \
+deepcopy-gen,conversion-gen \
 github.com/openshift/autoheal/pkg/client \
 github.com/openshift/autoheal/pkg/apis \
 github.com/openshift/autoheal/pkg/apis \

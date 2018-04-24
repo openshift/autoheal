@@ -21,8 +21,6 @@ package data
 
 import (
 	core "k8s.io/api/core/v1"
-
-	autoheal "github.com/openshift/autoheal/pkg/apis/autoheal/v1alpha2"
 )
 
 // Config is used to marshal and unmarshal the main configuration of the auto-heal service.
@@ -34,8 +32,11 @@ type Config struct {
 	// Throttling contains the healing rule execution throttling details.
 	Throttling *ThrottlingConfig
 
-	// The list of healing rules.
-	Rules []*autoheal.HealingRule `json:"rules,omitempty"`
+	// The list of healing rules. Note that we use here an interface because we don't know in
+	// advance what version of the rule type will be used in the configuration file. So we accept
+	// any thing and we will try to convert them to the internal unversioned rule type using the
+	// standard Kubernetes API mechanisms.
+	Rules []interface{} `json:"rules,omitempty"`
 }
 
 // AWXConfig contains the details used by the auto-heal service to connect to the AWX server and
