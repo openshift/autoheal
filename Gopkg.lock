@@ -301,6 +301,16 @@
   revision = "e19ae1496984b1c655b8044a65c0300a3c878dd3"
 
 [[projects]]
+  branch = "master"
+  name = "golang.org/x/tools"
+  packages = [
+    "go/ast/astutil",
+    "imports",
+    "internal/fastwalk"
+  ]
+  revision = "c1def519f03ddf76f16b3e444ee1095d73afa01b"
+
+[[projects]]
   name = "gopkg.in/inf.v0"
   packages = ["."]
   revision = "3887ee99ecf07df5b447e9b00d9c0b2adaa9f3e4"
@@ -444,6 +454,42 @@
   revision = "9389c055a838d4f208b699b3c7c51b70f2368861"
 
 [[projects]]
+  name = "k8s.io/code-generator"
+  packages = [
+    "cmd/client-gen",
+    "cmd/client-gen/args",
+    "cmd/client-gen/generators",
+    "cmd/client-gen/generators/fake",
+    "cmd/client-gen/generators/scheme",
+    "cmd/client-gen/generators/util",
+    "cmd/client-gen/path",
+    "cmd/client-gen/types",
+    "cmd/deepcopy-gen",
+    "cmd/defaulter-gen",
+    "cmd/informer-gen",
+    "cmd/informer-gen/generators",
+    "cmd/lister-gen",
+    "cmd/lister-gen/generators"
+  ]
+  revision = "91d3f6a57905178524105a085085901bb73bd3dc"
+  version = "kubernetes-1.9.1"
+
+[[projects]]
+  branch = "master"
+  name = "k8s.io/gengo"
+  packages = [
+    "args",
+    "examples/deepcopy-gen/generators",
+    "examples/defaulter-gen/generators",
+    "examples/set-gen/sets",
+    "generator",
+    "namer",
+    "parser",
+    "types"
+  ]
+  revision = "01a732e01d00cb9a81bb0ca050d3e6d2b947927b"
+
+[[projects]]
   branch = "master"
   name = "k8s.io/kube-openapi"
   packages = ["pkg/common"]
@@ -452,6 +498,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "e60093e28a841721b73e6e6cc99b249728e1e762e7f283a1d3496cd5c785808d"
+  inputs-digest = "3d98825205d0d859927f596043e165c7a2c22487403bf423ef432b8bcd4cd294"
   solver-name = "gps-cdcl"
   solver-version = 1

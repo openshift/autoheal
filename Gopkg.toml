@@ -1,3 +1,16 @@
+#
+# These packages aren't really required by the application, but we need them in
+# order to build and run the code Kubernetes API code generators.
+#
+required = [
+  "k8s.io/code-generator/cmd/client-gen",
+  "k8s.io/code-generator/cmd/deepcopy-gen",
+  "k8s.io/code-generator/cmd/defaulter-gen",
+  "k8s.io/code-generator/cmd/informer-gen",
+  "k8s.io/code-generator/cmd/lister-gen",
+  "k8s.io/gengo/examples/defaulter-gen/generators",
+]
+
 [[constraint]]
   name = "github.com/golang/glog"
   revision = "23def4e6c14b4da8ac2ed8007337bc5eb5007998"
@@ -19,6 +32,10 @@
   version = "kubernetes-1.9.2"
 
 [[constraint]]
+  name = "k8s.io/code-generator"
+  version = "kubernetes-1.9.2"
+
+[[constraint]]
   name = "golang.org/x/sync"
   branch = "master"
 
@@ -34,3 +51,12 @@
 [[constraint]]
   name = "github.com/moolitayer/awx-client-go"
   version = "0.0.1"
+
+#
+# For the Kubernetes code generator we need to make sure that everything is
+# included, as we need the `generate-internal-groups.sh` script to run it.
+#
+[[prune.project]]
+  name = "k8s.io/code-generator"
+  non-go = false
+  unused-packages = false
