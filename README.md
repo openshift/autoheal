@@ -270,6 +270,56 @@ awxJob:
     }
 ```
 
+### Alertmanager Configuration
+
+Follow the upstream [Prometheus Alertmanager documentation](https://prometheus.io/docs/alerting/configuration/)
+to configure alerts.
+
+For reference, here is an example Alertmanager configuration that sends
+an alert to the auto-heal service with authentication. This example assumes
+autoheal and the Alertmanager are running on the same OpenShift cluster,
+and requires Alertmanager 0.15 or newer.
+
+```yaml
+global:
+  resolve_timeout: 1m
+
+route:
+  group_wait: 1s
+  group_interval: 1s
+  repeat_interval: 5m
+  receiver: autoheal
+  routes:
+  - match:
+      alertname: DeadMansSwitch
+    repeat_interval: 5m
+    receiver: autoheal 
+receivers:
+- name: default
+- name: deadmansswitch
+- name: autoheal
+  webhook_configs:
+  - url: https://autoheal.openshift-autoheal.svc/alerts
+    http_config:
+      bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+      ca_file: /var/run/secrets/kubernetes.io/serviceaccount/service-ca.crt
+```
+
+When using the cluster-monitoring-operator, save the configuration as
+`alertmanager.yaml` and use this command to apply it:
+
+```oc create secret generic alertmanager-main \
+   --namespace=openshift-monitoring \
+   --from-literal=alertmanager.yaml="$(< alertmanager.yaml)" \
+   --dry-run -oyaml \
+   | \
+   oc replace secret \
+   --namespace=openshift-monitoring \
+   --filename=-
+```
+
+
+
 ## Building
 
 To build the binary run this command:
