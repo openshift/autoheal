@@ -20,6 +20,8 @@ limitations under the License.
 package autoheal
 
 import (
+	"encoding/json"
+
 	batch "k8s.io/api/batch/v1"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -54,6 +56,24 @@ type HealingRule struct {
 	BatchJob *batch.Job
 }
 
+// JsonDoc represents json document
+type JsonDoc map[string]interface{}
+
+func (in JsonDoc) DeepCopy() (out JsonDoc) {
+	if in != nil {
+		bytes, err := json.Marshal(in)
+		if err != nil {
+			return
+		}
+
+		err = json.Unmarshal(bytes, &out)
+		if err != nil {
+			return
+		}
+	}
+	return
+}
+
 // AWXJobAction describes how to run an Ansible AWX job.
 //
 type AWXJobAction struct {
@@ -63,7 +83,7 @@ type AWXJobAction struct {
 
 	// ExtraVars are the extra variables that will be passed to job.
 	// +optional
-	ExtraVars string
+	ExtraVars JsonDoc
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

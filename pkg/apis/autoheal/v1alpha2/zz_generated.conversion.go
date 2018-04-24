@@ -48,7 +48,7 @@ func RegisterConversions(scheme *runtime.Scheme) error {
 
 func autoConvert_v1alpha2_AWXJobAction_To_autoheal_AWXJobAction(in *AWXJobAction, out *autoheal.AWXJobAction, s conversion.Scope) error {
 	out.Template = in.Template
-	out.ExtraVars = in.ExtraVars
+	out.ExtraVars = *(*autoheal.JsonDoc)(unsafe.Pointer(&in.ExtraVars))
 	return nil
 }
 
@@ -59,7 +59,7 @@ func Convert_v1alpha2_AWXJobAction_To_autoheal_AWXJobAction(in *AWXJobAction, ou
 
 func autoConvert_autoheal_AWXJobAction_To_v1alpha2_AWXJobAction(in *autoheal.AWXJobAction, out *AWXJobAction, s conversion.Scope) error {
 	out.Template = in.Template
-	out.ExtraVars = in.ExtraVars
+	out.ExtraVars = *(*JsonDoc)(unsafe.Pointer(&in.ExtraVars))
 	return nil
 }
 

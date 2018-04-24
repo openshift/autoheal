@@ -201,10 +201,8 @@ rules:
     alertname: "NodeDown"
   awxJob:
     template: "Start node"
-    extraVars: |-
-      {
-        "node": "{{ $labels.instance }}"
-      }
+    extraVars: 
+      node: "{{ $labels.instance }}"
 
 - metadata:
     name: start-service
@@ -264,10 +262,8 @@ Or to pass a variable `node` to the playbook, calculated from the
 ```yaml
 awxJob:
   template: "My template"
-  extraVars: |-
-    {
-      "node": "{{ $labels.node }}"
-    }
+  extraVars: 
+    node: "{{ $labels.node }}"
 ```
 
 ### Alertmanager Configuration
