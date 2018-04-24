@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+  http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -14,6 +14,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// This file contains the versioned types that are used to interact with the auto-heal service, via
+// the configuration files.
+
 package v1alpha2
 
 import (
@@ -21,7 +24,6 @@ import (
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // HealingRule is the description of an healing rule.
@@ -62,4 +64,15 @@ type AWXJobAction struct {
 	// ExtraVars are the extra variables that will be passed to job.
 	// +optional
 	ExtraVars string `json:"extraVars,omitempty"`
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// HealingRuleList is a list of healing rules.
+//
+type HealingRuleList struct {
+	meta.TypeMeta `json:",inline"`
+	meta.ListMeta `json:"metadata,inline"`
+
+	Items []HealingRule `json:"items,omitempty"`
 }
