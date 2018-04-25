@@ -111,10 +111,14 @@ func (h *Healer) launchAWXJob(
 		templateName,
 		response.Job,
 	)
-	h.incrementAwxActions(action, rule.ObjectMeta.Name)
+	h.actionStarted(
+		"AWXJob",
+		templateName,
+		rule.ObjectMeta.Name,
+	)
 
 	// Add the job to active jobs map for tracking
-	h.activeJobs.Store(response.Job, response.Job)
+	h.activeJobs.Store(response.Job, rule)
 
 	return nil
 }
@@ -158,7 +162,6 @@ func (h *Healer) checkAWXJobStatus(jobID int) (finished bool, err error) {
 	)
 
 	finished = job.IsFinished()
-	// TODO: save status as metric
 
 	return
 }

@@ -5,8 +5,6 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-
-	"github.com/openshift/autoheal/pkg/apis/autoheal"
 )
 
 var (
@@ -17,12 +15,12 @@ var (
 		},
 		[]string{"type", "rule", "alert"},
 	)
-	actionsInitiated = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "autoheal_actions_initiated_total",
-			Help: "Number of initiated healing actions",
+	actionsLaunched = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "autoheal_actions_launched",
+			Help: "Number of launched healing actions(including completed)",
 		},
-		[]string{"type", "template", "rule"},
+		[]string{"type", "template", "rule", "status"},
 	)
 )
 
@@ -31,18 +29,43 @@ func (h *Healer) metricsHandler() http.Handler {
 }
 
 func (h *Healer) initExportedMetrics() {
-	prometheus.MustRegister(actionsRequested, actionsInitiated)
+	prometheus.MustRegister(actionsRequested, actionsLaunched)
 }
 
-func (h *Healer) incrementAwxActions(
-	action *autoheal.AWXJobAction,
+func (h *Healer) actionStarted(
+	actionType,
+	templateName,
 	ruleName string,
 ) {
-	actionsInitiated.With(
+	actionsLaunched.With(
 		map[string]string{
-			"type":     "awxJob",
-			"template": action.Template,
+			"type":     actionType,
+			"template": templateName,
 			"rule":     ruleName,
+			"status":   "running",
+		},
+	).Inc()
+}
+
+func (h *Healer) actionCompleted(
+	actionType,
+	templateName,
+	ruleName string,
+) {
+	actionsLaunched.With(
+		map[string]string{
+			"type":     actionType,
+			"template": templateName,
+			"rule":     ruleName,
+			"status":   "running",
+		},
+	).Dec()
+	actionsLaunched.With(
+		map[string]string{
+			"type":     actionType,
+			"template": templateName,
+			"rule":     ruleName,
+			"status":   "completed",
 		},
 	).Inc()
 }

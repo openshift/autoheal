@@ -20,15 +20,15 @@ All these metrics are prefixed with `autoheal_actions_`
 
 | Name             | Description                         | Type    |
 |------------------|-------------------------------------|---------|
-| initiated_total  | Number of initiated healing actions | Counter |
+| launched         | Number of started healing actions   | Gauge   |
 | requested_total  | Number of requested healing actions | Counter |
-
-`initiated_total` indicates how many healing actions were successfully kicked off by the server. An AWX type action is counted when a SUCCESSFUL `launch` request was done against an AWX server.
 
 `requested_total` indicates how many healing actions were triggered by the server. An action that
 was rate limited by the server is counted here as well as a heal that failed to run for some reason.
 For example if autoheal failed to contact AWX for an AWX job, a heal will not start
 but it will be counted as requested.
+
+`launched` indicates how many healing actions started, partitioned by status `running`|`completed`.
 
 ## Prometheus supplied metrics
 
