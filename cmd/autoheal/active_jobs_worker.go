@@ -19,6 +19,8 @@ package main
 import (
 	"github.com/golang/glog"
 	"k8s.io/apimachinery/pkg/util/runtime"
+
+	"github.com/openshift/autoheal/pkg/apis/autoheal"
 )
 
 func (h *Healer) runActiveJobsWorker() {
@@ -26,9 +28,9 @@ func (h *Healer) runActiveJobsWorker() {
 
 	finishedJobs := make([]int, 0)
 
-	h.activeJobs.Range(func(_, value interface{}) bool {
-		id := value.(int)
-
+	h.activeJobs.Range(func(key interface{}, value interface{}) bool {
+		id := key.(int)
+		rule := value.(*autoheal.HealingRule)
 		finished, err := h.checkAWXJobStatus(id)
 		if err != nil {
 			runtime.HandleError(err)
@@ -36,6 +38,11 @@ func (h *Healer) runActiveJobsWorker() {
 
 		if finished {
 			finishedJobs = append(finishedJobs, id)
+			h.actionCompleted(
+				"AWXJob",
+				rule.AWXJob.Template,
+				rule.ObjectMeta.Name,
+			)
 		}
 		return true
 	})
