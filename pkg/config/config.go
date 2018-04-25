@@ -22,7 +22,7 @@ import (
 	"bytes"
 	"time"
 
-	autoheal "github.com/openshift/autoheal/pkg/apis/autoheal/v1alpha2"
+	"github.com/openshift/autoheal/pkg/apis/autoheal"
 )
 
 // Config is a read only view of the configuration of the auto-heal service.

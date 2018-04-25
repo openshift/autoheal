@@ -6,7 +6,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
-	autoheal "github.com/openshift/autoheal/pkg/apis/autoheal/v1alpha2"
+	"github.com/openshift/autoheal/pkg/apis/autoheal"
 )
 
 var (

@@ -20,10 +20,12 @@ package config
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"reflect"
 	"sort"
 	"strings"
 	"time"
@@ -32,9 +34,12 @@ import (
 	"github.com/golang/glog"
 	core "k8s.io/api/core/v1"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/client-go/kubernetes"
 
-	autoheal "github.com/openshift/autoheal/pkg/apis/autoheal/v1alpha2"
+	"github.com/openshift/autoheal/pkg/apis/autoheal"
+	"github.com/openshift/autoheal/pkg/apis/autoheal/v1alpha2"
 	"github.com/openshift/autoheal/pkg/internal/data"
 )
 
@@ -49,12 +54,24 @@ type Loader struct {
 
 	// The configuration object that is being populated:
 	config *Config
+
+	// The codec that will be used to convert the rules specified in the configuration file into the
+	// types used internally.
+	codec runtime.Codec
 }
 
 // NewLoader creates an empty configuration loader.
 //
 func NewLoader() *Loader {
 	l := new(Loader)
+
+	// Create and the codec that will be used to convert the rules specified into the configuration
+	// file into the types used internally:
+	scheme := runtime.NewScheme()
+	autoheal.AddToScheme(scheme)
+	v1alpha2.AddToScheme(scheme)
+	l.codec = serializer.NewCodecFactory(scheme).LegacyCodec()
+
 	return l
 }
 
@@ -364,7 +381,43 @@ func (l *Loader) loadSecret(reference *core.SecretReference) (secret *core.Secre
 	return
 }
 
-func (l *Loader) mergeRules(rules []*autoheal.HealingRule) error {
-	l.config.rules = append(l.config.rules, rules...)
+func (l *Loader) mergeRules(rules []interface{}) error {
+	for _, rule := range rules {
+		err := l.mergeRule(rule)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (l *Loader) mergeRule(rawRule interface{}) error {
+	// The rule was originally written in YAML inside the configuration file, but in order to
+	// deserialize it using the Kubernetes API versioning mechanism we need to convert it back to
+	// JSON, as the coded only supports JSON.
+	jsonRule, err := json.Marshal(rawRule)
+	if err != nil {
+		return fmt.Errorf("Can't convert rule to JSON: %s", err)
+	}
+
+	// Now we can create an empty instance of the type that we expect and try to convert the JSON
+	// produced in the previous step to that type:
+	inRule := new(autoheal.HealingRule)
+	defaultKind := reflect.TypeOf(*inRule).Name()
+	defaultGVK := v1alpha2.SchemeGroupVersion.WithKind(defaultKind)
+	outRule, _, err := l.codec.Decode(jsonRule, &defaultGVK, inRule)
+	if err != nil {
+		return fmt.Errorf("Can't convert rule JSON to type '%s': %s", defaultKind, err)
+	}
+
+	// Check that the resulting object is really the type that we expect:
+	convertedRule, ok := outRule.(*autoheal.HealingRule)
+	if !ok {
+		return fmt.Errorf("Converted rule is of type '%T', but expected '%T'", outRule, inRule)
+	}
+
+	// Add the rule to the list:
+	l.config.rules = append(l.config.rules, convertedRule)
+
 	return nil
 }

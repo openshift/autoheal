@@ -25,8 +25,8 @@ import (
 	batch "k8s.io/api/batch/v1"
 	"k8s.io/apimachinery/pkg/util/runtime"
 
-	alertmanager "github.com/openshift/autoheal/pkg/alertmanager"
-	autoheal "github.com/openshift/autoheal/pkg/apis/autoheal/v1alpha2"
+	"github.com/openshift/autoheal/pkg/alertmanager"
+	"github.com/openshift/autoheal/pkg/apis/autoheal"
 )
 
 func (h *Healer) runAlertsWorker() {

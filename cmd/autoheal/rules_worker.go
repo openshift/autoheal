@@ -21,7 +21,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 
-	autoheal "github.com/openshift/autoheal/pkg/apis/autoheal/v1alpha2"
+	"github.com/openshift/autoheal/pkg/apis/autoheal"
 )
 
 func (h *Healer) runRulesWorker() {

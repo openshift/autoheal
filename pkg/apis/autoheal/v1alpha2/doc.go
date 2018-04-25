@@ -15,6 +15,7 @@ limitations under the License.
 */
 
 // +k8s:deepcopy-gen=package
+// +k8s:conversion-gen=github.com/openshift/autoheal/pkg/apis/autoheal
 
 // +groupName=autoheal.openshift.io
 package v1alpha2
