@@ -20,15 +20,10 @@
 # minimal configuration.
 
 oc process \
---filename=template.yml \
---param=OAUTH_PROXY_SECRET="$(dd if=/dev/urandom count=1 bs=32 2>/dev/null | base64 --wrap=0)" \
---param=AWX_ADDRESS="https://my-awx.example.com/api" \
---param=AWX_USER="$(echo -n 'autoheal' | base64 --wrap=0)" \
---param=AWX_PASSWORD="$(echo -n 'redhat123' | base64 --wrap=0)" \
+  --filename="template.yml" \
+  --param=IMAGE="openshift/origin-autoheal:latest" \
+  --param=CONFIG="$(base64 examples/autoheal-dev.yml)" \
+  --param=SECRET="$(openssl rand -base64 32)" \
 | \
-oc apply --filename=-
-
-# Add a line like this if you have a `ca.crt` file containing the CA
-# certificates needed to connect to the AWX server:
-#
-# --param=AWX_CA="$(base64 --wrap=0 ca.crt)" \
+oc apply \
+  --filename=-
