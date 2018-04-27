@@ -11,6 +11,24 @@ required = [
   "k8s.io/gengo/examples/defaulter-gen/generators",
 ]
 
+#
+# Reduce the size of the `vendor` directory excluding unused packages, tests and
+# other files that aren't needed.
+#
+[prune]
+  go-tests = true
+  non-go = true
+  unused-packages = true
+
+#
+# For the Kubernetes code generator we need to make sure that everything is
+# included, as we need the `generate-internal-groups.sh` script to run it.
+#
+[[prune.project]]
+  name = "k8s.io/code-generator"
+  non-go = false
+  unused-packages = false
+
 [[constraint]]
   name = "github.com/golang/glog"
   revision = "23def4e6c14b4da8ac2ed8007337bc5eb5007998"
@@ -43,20 +61,7 @@ required = [
   name = "github.com/ghodss/yaml"
   branch = "master"
 
-[prune]
-  go-tests = true
-  non-go = true
-  unused-packages = true
-
 [[constraint]]
   name = "github.com/moolitayer/awx-client-go"
   version = "0.0.1"
 
-#
-# For the Kubernetes code generator we need to make sure that everything is
-# included, as we need the `generate-internal-groups.sh` script to run it.
-#
-[[prune.project]]
-  name = "k8s.io/code-generator"
-  non-go = false
-  unused-packages = false
