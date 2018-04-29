@@ -27,10 +27,8 @@
 #
 #   awxJob:
 #     template: "Increase node memory"
-#     extraVars: |-
-#       {
-#         "instance": "{{ $labels.instance }}"
-#       }
+#     extraVars:
+#       instance: "{{ $labels.instance }}"
 #
 # That will populate the `instance` variable with the value of the `instance`
 # label of the alert, which will be the IP address of the node if the alert is

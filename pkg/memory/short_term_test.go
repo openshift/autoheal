@@ -20,7 +20,7 @@ import (
 	"testing"
 	"time"
 
-	autoheal "github.com/openshift/autoheal/pkg/apis/autoheal/v1alpha2"
+	autoheal "github.com/openshift/autoheal/pkg/apis/autoheal"
 )
 
 func TestExisting(t *testing.T) {
@@ -81,14 +81,14 @@ func TestDifferentTemplate(t *testing.T) {
 func TestSameVars(t *testing.T) {
 	memory := makeMemory(t, 1*time.Millisecond)
 	first := &autoheal.AWXJobAction{
-		ExtraVars: `{
-			"myvar": "myvalue"
-		}`,
+		ExtraVars: autoheal.JsonDoc{
+			"myvar": "myvalue",
+		},
 	}
 	second := &autoheal.AWXJobAction{
-		ExtraVars: `{
-			"myvar": "myvalue"
-		}`,
+		ExtraVars: autoheal.JsonDoc{
+			"myvar": "myvalue",
+		},
 	}
 	memory.Add(first)
 	if !memory.Has(first) {
@@ -102,14 +102,14 @@ func TestSameVars(t *testing.T) {
 func TestDifferentVars(t *testing.T) {
 	memory := makeMemory(t, 1*time.Millisecond)
 	first := &autoheal.AWXJobAction{
-		ExtraVars: `{
-			"myvar": "myvalue"
-		}`,
+		ExtraVars: autoheal.JsonDoc{
+			"myvar": "myvalue",
+		},
 	}
 	second := &autoheal.AWXJobAction{
-		ExtraVars: `{
-			"yourvar": "yourvalue"
-		}`,
+		ExtraVars: autoheal.JsonDoc{
+			"yourvar": "yourvalue",
+		},
 	}
 	memory.Add(first)
 	if !memory.Has(first) {

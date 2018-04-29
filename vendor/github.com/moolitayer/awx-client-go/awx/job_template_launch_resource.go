@@ -20,6 +20,8 @@ limitations under the License.
 package awx
 
 import (
+	"encoding/json"
+
 	"github.com/moolitayer/awx-client-go/awx/internal/data"
 )
 
@@ -76,18 +78,35 @@ func (r *JobTemplateLaunchGetResponse) JobTemplateData() *JobTemplate {
 type JobTemplateLaunchPostRequest struct {
 	Request
 
-	extraVars string
+	extraVars map[string]interface{}
 }
 
-func (r *JobTemplateLaunchPostRequest) ExtraVars(value string) *JobTemplateLaunchPostRequest {
+func (r *JobTemplateLaunchPostRequest) ExtraVars(value map[string]interface{}) *JobTemplateLaunchPostRequest {
 	r.extraVars = value
+	return r
+}
+
+func (r *JobTemplateLaunchPostRequest) ExtraVar(name string, value interface{}) *JobTemplateLaunchPostRequest {
+	if r.extraVars == nil {
+		r.extraVars = make(map[string]interface{})
+	}
+	r.extraVars[name] = value
 	return r
 }
 
 func (r *JobTemplateLaunchPostRequest) Send() (response *JobTemplateLaunchPostResponse, err error) {
 	// Generate the input data:
 	input := new(data.JobTemplateLaunchPostRequest)
-	input.ExtraVars = r.extraVars
+
+	if r.extraVars != nil {
+		// convert extravars json to string
+		var bytes []byte
+		bytes, err = json.Marshal(r.extraVars)
+		if err != nil {
+			return
+		}
+		input.ExtraVars = string(bytes)
+	}
 
 	// Send the request:
 	output := new(data.JobTemplateLaunchPostResponse)

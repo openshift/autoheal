@@ -139,10 +139,8 @@ rules:
     alertname: "NodeDown"
   awxJob:
     template: "Start node"
-    extraVars: |-
-      {
-        "node": "{{ $labels.instance }}"
-      }
+    extraVars: 
+      node: "{{ $labels.instance }}"
 
 #
 # This rule runs a batch job that uses Python to say hello when the

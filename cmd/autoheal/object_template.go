@@ -118,36 +118,66 @@ type ObjectTemplate struct {
 // parameter.
 //
 func (t *ObjectTemplate) Process(object interface{}, data interface{}) error {
+	kind := reflect.ValueOf(object).Kind()
+	if kind != reflect.Ptr {
+		return fmt.Errorf("Bad argument to function. object must be of pointer type, but type is %v", kind)
+	}
+
 	if glog.V(2) {
 		glog.Infof("Data: %v", data)
 	}
-	return t.processValue(reflect.ValueOf(object), data)
+	_, err := t.processValue(reflect.ValueOf(object), data)
+
+	return err
 }
 
-func (t *ObjectTemplate) processValue(value reflect.Value, data interface{}) error {
-	var err error
-	if value.IsValid() {
-		switch value.Kind() {
+func (t *ObjectTemplate) processValue(input reflect.Value, data interface{}) (output reflect.Value, err error) {
+	output = input
+	if output.IsValid() {
+		switch output.Kind() {
 		case reflect.String:
-			err = t.processString(value, data)
+			text, err := t.processString(output, data)
+			if err == nil {
+				output = reflect.ValueOf(text)
+			}
 		case reflect.Array:
 			// Not implemented yet.
 		case reflect.Slice:
 			// Not implemented yet.
+		case reflect.Map:
+			for _, k := range output.MapKeys() {
+				var v reflect.Value
+				v, err = t.processValue(output.MapIndex(k), data)
+				if err != nil {
+					return
+				}
+
+				// update the processed vaule in the map
+				output.SetMapIndex(k, v)
+			}
 		case reflect.Struct:
-			for i, n := 0, value.NumField(); i < n && err == nil; i++ {
-				err = t.processValue(value.Field(i), data)
+			for i, n := 0, output.NumField(); i < n && err == nil; i++ {
+				_, err = t.processValue(output.Field(i), data)
+				if err != nil {
+					return
+				}
 			}
 		case reflect.Ptr:
-			err = t.processValue(value.Elem(), data)
+			output, err = t.processValue(output.Elem(), data)
+		case reflect.Interface:
+			output, err = t.processValue(reflect.ValueOf(output.Interface()), data)
+		default:
+			if glog.V(3) {
+				glog.Infof("Unsupported value kind: %v, skipping templating", output.Kind())
+			}
 		}
 	}
-	return err
+	return
 }
 
-func (t *ObjectTemplate) processString(value reflect.Value, data interface{}) error {
+func (t *ObjectTemplate) processString(value reflect.Value, data interface{}) (text string, err error) {
 	// Get the original text:
-	text := value.String()
+	text = value.String()
 	if glog.V(3) {
 		glog.Infof("Original text:\n%s", text)
 	}
@@ -166,20 +196,17 @@ func (t *ObjectTemplate) processString(value reflect.Value, data interface{}) er
 	// Parse and run the template:
 	tmpl, err := template.New("").Delims(t.left, t.right).Parse(text)
 	if err != nil {
-		return err
+		return
 	}
 	buffer.Reset()
 	err = tmpl.Execute(buffer, data)
 	if err != nil {
-		return err
+		return
 	}
 	text = buffer.String()
 	if glog.V(3) {
 		glog.Infof("Generated text:\n%s", text)
 	}
 
-	// Modify the value:
-	value.SetString(text)
-
-	return nil
+	return
 }
