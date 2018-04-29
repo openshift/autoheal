@@ -55,3 +55,7 @@ func (j *Job) IsFinished() bool {
 	}
 	return false
 }
+
+func (j *Job) IsSuccessful() bool {
+	return j.status == JobStatusSuccesful
+}
