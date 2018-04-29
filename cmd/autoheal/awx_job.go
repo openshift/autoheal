@@ -82,7 +82,7 @@ func (h *Healer) runAWXJob(rule *autoheal.HealingRule, action *autoheal.AWXJobAc
 		alert.Name(),
 	)
 	for _, template := range templatesResponse.Results() {
-		err := h.launchAWXJob(connection, template, action, rule)
+		err := h.launchAWXJob(connection, template, action, rule, alert)
 		if err != nil {
 			return err
 		}
@@ -96,12 +96,14 @@ func (h *Healer) launchAWXJob(
 	template *awx.JobTemplate,
 	action *autoheal.AWXJobAction,
 	rule *autoheal.HealingRule,
+	alert *alertmanager.Alert,
 ) error {
 	templateId := template.Id()
 	templateName := template.Name()
 	launchResource := connection.JobTemplates().Id(templateId).Launch()
 	response, err := launchResource.Post().
 		ExtraVars(action.ExtraVars).
+		ExtraVar("alert", alert).
 		Send()
 	if err != nil {
 		return err
