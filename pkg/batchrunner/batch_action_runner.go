@@ -29,7 +29,6 @@ import (
 
 type Builder struct {
 	k8sClient kubernetes.Interface
-	stopCh    <-chan struct{}
 }
 
 type Runner struct {
@@ -42,11 +41,6 @@ func NewBuilder() *Builder {
 
 func (b *Builder) KubernetesClient(k8sClient kubernetes.Interface) *Builder {
 	b.k8sClient = k8sClient
-	return b
-}
-
-func (b *Builder) StopCh(stopCh <-chan struct{}) *Builder {
-	b.stopCh = stopCh
 	return b
 }
 
