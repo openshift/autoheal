@@ -40,7 +40,7 @@ func NewBuilder() *Builder {
 	return new(Builder)
 }
 
-func (b *Builder) KuberenetesClient(k8sClient kubernetes.Interface) *Builder {
+func (b *Builder) KubernetesClient(k8sClient kubernetes.Interface) *Builder {
 	b.k8sClient = k8sClient
 	return b
 }
