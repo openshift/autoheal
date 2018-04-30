@@ -139,6 +139,11 @@ func (t *ObjectTemplate) processValue(input reflect.Value, data interface{}) (ou
 			text, err := t.processString(output, data)
 			if err == nil {
 				output = reflect.ValueOf(text)
+
+				// update settable values in place
+				if input.CanSet() {
+					input.SetString(text)
+				}
 			}
 		case reflect.Array:
 			// Not implemented yet.
@@ -152,7 +157,7 @@ func (t *ObjectTemplate) processValue(input reflect.Value, data interface{}) (ou
 					return
 				}
 
-				// update the processed vaule in the map
+				// update the processed value in the map
 				output.SetMapIndex(k, v)
 			}
 		case reflect.Struct:
