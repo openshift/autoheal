@@ -35,6 +35,7 @@ rules:
     template: "Start node"
     extraVars:
       node: "{{ $labels.instance }}"
+    limit:  "{{ $labels.instance }}"
 
 - metadata:
     name: say-hello

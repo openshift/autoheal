@@ -241,9 +241,17 @@ Regardless to the `extraVars` setting, the content of the alert that
 triggered the AWX job will be passed to the playbook as part of 
 `extraVars`, in a variable named `alert`.
 
-> Note that in order to be able to use this `extraVars` mechanism the
-> AWX job template should have the _Prompt on lauch_ box checked,
-> otherwise the variables passed will be ignored.
+The `limit` parameter is optional, and if specified it is passed to
+AWX to constrain the list of hosts managed or affected by the 
+playbook. Multiple patterns can be separated by colons (`:`). 
+As with core Ansible, `a:b` means "in group a or b", `a:b:&c` means 
+"in a or b but must be in c", and `a:!b` means "in a, and definitely 
+not in b".
+
+> Note that in order to be able to use `extraVars` and `limit`
+> mechanisms the AWX job template should have the 
+> _Prompt on lauch_ box checked, otherwise the variables passed 
+> will be ignored.
 
 The values of all the parameters inside `awxJob` are processed as [Go
 templates](https://golang.org/pkg/text/template) before executing the
@@ -265,6 +273,14 @@ awxJob:
   template: "My template"
   extraVars: 
     node: "{{ $labels.node }}"
+```
+
+Limit execution to a host, calculated from the `instance` label:
+
+```yaml
+awxJob:
+  template: "My template"
+  limit: "{{ $labels.instance }}"
 ```
 
 ### Alertmanager Configuration

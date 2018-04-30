@@ -131,7 +131,8 @@ rules:
 # This rule runs an the `Start Node` AWX job when the `NodeDown` alert
 # is fired. The playbook that handles this alert is expected to take the
 # name of the node from the `node` variable, so we need to translate the
-# `instance` label into the `node` variable passed in the `extraVars`.
+# `instance` label into the `node` variable passed in the `extraVars`,
+# and in the `limit` parameter.
 #
 - metadata:
     name: start-node
@@ -141,6 +142,7 @@ rules:
     template: "Start node"
     extraVars: 
       node: "{{ $labels.instance }}"
+    limit: "{{ $labels.instance }}"
 
 #
 # This rule runs a batch job that uses Python to say hello when the

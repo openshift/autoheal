@@ -84,6 +84,11 @@ type AWXJobAction struct {
 	// ExtraVars are the extra variables that will be passed to job.
 	// +optional
 	ExtraVars JsonDoc
+
+	// Limit is a pattern that will be passed to the job to constrain
+	// the hosts that will be affected by the playbook.
+	// +optional
+	Limit string
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
