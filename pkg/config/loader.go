@@ -213,6 +213,9 @@ func (l *Loader) mergeFile(file string) error {
 		}
 	}
 
+	// Add the file to loaded config files list:
+	l.config.configFiles = append(l.config.configFiles, file)
+
 	return nil
 }
 

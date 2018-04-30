@@ -22,16 +22,31 @@ import (
 	"bytes"
 	"time"
 
+	"github.com/golang/glog"
+	"github.com/yaacov/observer/observer"
+
 	"github.com/openshift/autoheal/pkg/apis/autoheal"
 )
 
 // Config is a read only view of the configuration of the auto-heal service.
 //
 type Config struct {
-	awx        *AWXConfig
-	throttling *ThrottlingConfig
-	rules      []*autoheal.HealingRule
+	awx                 *AWXConfig
+	throttling          *ThrottlingConfig
+	rules               []*autoheal.HealingRule
+	configFiles         []string // config files loaded by the loader
+	configFilesObserver *observer.Observer
 }
+
+// ChangeEvent contains config change event info
+//
+type ChangeEvent struct {
+	// Empty
+}
+
+// ChangeListener a listener function that can be called when config event change is triggered.
+//
+type ChangeListener func(*ChangeEvent)
 
 // ThrottlingConfig is a read only view of the section of the configuration that describes how to
 // throttle the execution of healing rules.
@@ -140,4 +155,36 @@ func (t *ThrottlingConfig) Interval() time.Duration {
 //
 func (c *Config) Rules() []*autoheal.HealingRule {
 	return c.rules
+}
+
+// CloseChangeObserver close the change obeserver channels
+//
+func (c *Config) CloseChangeObserver() {
+	c.configFilesObserver.Close()
+}
+
+// AddChangeListener to be called on change events
+//
+func (c *Config) AddChangeListener(listener ChangeListener) {
+	// add a new listener to configFilesObserver
+	c.configFilesObserver.AddListener(func(_ interface{}) {
+		listener(&ChangeEvent{})
+	})
+}
+
+// Watch config files for changes
+//
+func (c *Config) Watch() Config {
+	// Start a change watcher over loaded config files.
+	c.configFilesObserver = new(observer.Observer)
+	c.configFilesObserver.Open()
+
+	// Start/Re-start watching config files for modifications.
+	err := c.configFilesObserver.Watch(c.configFiles)
+	if err != nil {
+		glog.Errorf("Error watching config files: %v", err)
+	}
+	glog.Infof("Watching config files: %v", c.configFiles)
+
+	return *c
 }
