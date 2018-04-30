@@ -79,18 +79,27 @@ type JobTemplateLaunchPostRequest struct {
 	Request
 
 	extraVars map[string]interface{}
+	limit     string
 }
 
+// ExtraVars set a map or external variables sent to the AWX job.
 func (r *JobTemplateLaunchPostRequest) ExtraVars(value map[string]interface{}) *JobTemplateLaunchPostRequest {
 	r.extraVars = value
 	return r
 }
 
+// ExtraVar adds a single external variable to extraVars map.
 func (r *JobTemplateLaunchPostRequest) ExtraVar(name string, value interface{}) *JobTemplateLaunchPostRequest {
 	if r.extraVars == nil {
 		r.extraVars = make(map[string]interface{})
 	}
 	r.extraVars[name] = value
+	return r
+}
+
+// Limit allows limiting template execution to specific hosts.
+func (r *JobTemplateLaunchPostRequest) Limit(value string) *JobTemplateLaunchPostRequest {
+	r.limit = value
 	return r
 }
 
@@ -107,6 +116,8 @@ func (r *JobTemplateLaunchPostRequest) Send() (response *JobTemplateLaunchPostRe
 		}
 		input.ExtraVars = string(bytes)
 	}
+
+	input.Limit = r.limit
 
 	// Send the request:
 	output := new(data.JobTemplateLaunchPostResponse)
