@@ -24,9 +24,6 @@ use the configuration that Kubernetes mounts automatically in the pod file
 system. So in most cases this command line option won't have to be explicitly
 included.
 
-The `--logtostderr` option is very convenient when running the auto-heal
-service, both in development and production environments.
-
 Assuming that you want to have your own `my.yml` configuration file a typical
 command line will be the following:
 
@@ -349,7 +346,7 @@ files that are inside the `examples` directory. For example, to simulate the
 send the alert notification:
 
 ```
-$ autoheal server --config-file=my.yml --logtostderr
+$ autoheal server --config-file=my.yml
 $ curl --data @examples/node-down-alert.json http://localhost:9099/alerts
 ```
 

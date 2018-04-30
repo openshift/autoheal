@@ -15,4 +15,4 @@ else
 fi
 
 # Run autoheal server using dev defaults
-"${binary}" server --config-file=examples/autoheal-dev.yml --logtostderr
+"${binary}" server --config-file=examples/autoheal-dev.yml

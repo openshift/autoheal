@@ -199,7 +199,6 @@ objects:
           args:
           - server
           - --config-file=/etc/autoheal/config.d
-          - --logtostderr
 
 - apiVersion: v1
   kind: Service
