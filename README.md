@@ -240,6 +240,10 @@ The `extraVars` parameter is optional, and if specified it is used to
 pass additional variables to the playbook, like with the `--extra-vars`
 option of the `ansible-playbook` command.
 
+Regardless to the `extraVars` setting, the content of the alert that 
+triggered the AWX job will be passed to the playbook as part of 
+`extraVars`, in a variable named `alert`.
+
 > Note that in order to be able to use this `extraVars` mechanism the
 > AWX job template should have the _Prompt on lauch_ box checked,
 > otherwise the variables passed will be ignored.
