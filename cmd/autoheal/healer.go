@@ -192,7 +192,7 @@ func (h *Healer) Run(stopCh <-chan struct{}) error {
 	}
 
 	batchRunner, err := batchrunner.NewBuilder().
-		KuberenetesClient(h.k8sClient).
+		KubernetesClient(h.k8sClient).
 		Build()
 
 	if err != nil {
