@@ -21,6 +21,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang/glog"
 	"github.com/openshift/autoheal/pkg/alertmanager"
 	"github.com/openshift/autoheal/pkg/apis/autoheal"
 	"github.com/openshift/autoheal/pkg/memory"
@@ -465,7 +466,7 @@ func TestEmptyRuleMatchesAlertWithAnnotation(t *testing.T) {
 func TestHealerActionMemory(t *testing.T) {
 	healer := makeHealer(t, "empty")
 	defer runtime.HandleCrash()
-
+	healer.actionRunners[ActionRunnerTypeAWX] = FakeAWXActionRunner{}
 	rule := &autoheal.HealingRule{
 		Labels: map[string]string{
 			"mylabel": "myvalue",
@@ -513,7 +514,7 @@ func TestHealerActionMemoryDisabled(t *testing.T) {
 	// disable actionMemory.
 	duration, _ := time.ParseDuration("0")
 	healer.actionMemory, _ = memory.NewShortTermMemoryBuilder().Duration(duration).Build()
-
+	healer.actionRunners[ActionRunnerTypeAWX] = FakeAWXActionRunner{}
 	rule := &autoheal.HealingRule{
 		Labels: map[string]string{
 			"mylabel": "myvalue",
@@ -564,4 +565,14 @@ func makeHealer(t *testing.T, name string) *Healer {
 		return nil
 	}
 	return healer
+}
+
+type FakeAWXActionRunner struct{}
+
+func (f FakeAWXActionRunner) RunAction(rule *autoheal.HealingRule, action interface{}, alert *alertmanager.Alert) error {
+	glog.Infof("Fake AWXActionRunner called with rule '%s' and alert '%s'",
+		rule.ObjectMeta.Name,
+		alert.Name(),
+	)
+	return nil
 }

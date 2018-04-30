@@ -27,6 +27,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/homedir"
 
+	"github.com/openshift/autoheal/pkg/metrics"
 	"github.com/openshift/autoheal/pkg/signals"
 )
 
@@ -121,7 +122,7 @@ func serverRun(cmd *cobra.Command, args []string) {
 	}
 
 	// Register exported metrics:
-	healer.initExportedMetrics()
+	metrics.InitExportedMetrics()
 
 	// Run the healer:
 	if err = healer.Run(stopCh); err != nil {

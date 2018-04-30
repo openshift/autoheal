@@ -14,28 +14,60 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package main
+package batchrunner
 
 import (
 	"fmt"
 
 	"github.com/golang/glog"
-	batch "k8s.io/api/batch/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
-
 	alertmanager "github.com/openshift/autoheal/pkg/alertmanager"
 	"github.com/openshift/autoheal/pkg/apis/autoheal"
+	batch "k8s.io/api/batch/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/client-go/kubernetes"
 )
 
-func (h *Healer) runBatchJob(rule *autoheal.HealingRule, job *batch.Job, alert *alertmanager.Alert) error {
+type Builder struct {
+	k8sClient kubernetes.Interface
+	stopCh    <-chan struct{}
+}
+
+type Runner struct {
+	k8sClient kubernetes.Interface
+}
+
+func NewBuilder() *Builder {
+	return new(Builder)
+}
+
+func (b *Builder) KuberenetesClient(k8sClient kubernetes.Interface) *Builder {
+	b.k8sClient = k8sClient
+	return b
+}
+
+func (b *Builder) StopCh(stopCh <-chan struct{}) *Builder {
+	b.stopCh = stopCh
+	return b
+}
+
+func (b *Builder) Build() (*Runner, error) {
+	runner := &Runner{
+		k8sClient: b.k8sClient,
+	}
+	return runner, nil
+}
+
+func (r *Runner) RunAction(rule *autoheal.HealingRule, action interface{}, alert *alertmanager.Alert) error {
+	batchJob := action.(*batch.Job)
+
 	glog.Infof(
 		"Running batch job '%s' to heal alert '%s'",
-		job.ObjectMeta.Name,
+		batchJob.ObjectMeta.Name,
 		alert.Labels["alertname"],
 	)
 
 	// The name of the job is mandatory:
-	name := job.ObjectMeta.Name
+	name := batchJob.ObjectMeta.Name
 	if name == "" {
 		return fmt.Errorf(
 			"Can't create job for rule '%s', the name hasn't been specified",
@@ -44,23 +76,23 @@ func (h *Healer) runBatchJob(rule *autoheal.HealingRule, job *batch.Job, alert *
 	}
 
 	// The namespace of the job is optional, the default is the namespace of the rule:
-	namespace := job.ObjectMeta.Namespace
+	namespace := batchJob.ObjectMeta.Namespace
 	if namespace == "" {
 		namespace = rule.ObjectMeta.Namespace
 	}
 
 	// Get the resource that manages the collection of batch jobs:
-	resource := h.k8sClient.Batch().Jobs(namespace)
+	resource := r.k8sClient.Batch().Jobs(namespace)
 
 	// Try to create the job:
-	job = job.DeepCopy()
-	job.ObjectMeta.Name = name
-	job.ObjectMeta.Namespace = namespace
-	_, err := resource.Create(job)
+	batchJob = batchJob.DeepCopy()
+	batchJob.ObjectMeta.Name = name
+	batchJob.ObjectMeta.Namespace = namespace
+	_, err := resource.Create(batchJob)
 	if errors.IsAlreadyExists(err) {
 		glog.Warningf(
 			"Batch job '%s' already exists, will do nothing to heal alert '%s'",
-			job.ObjectMeta.Name,
+			batchJob.ObjectMeta.Name,
 			alert.Labels["alertname"],
 		)
 	} else if err != nil {
@@ -68,7 +100,7 @@ func (h *Healer) runBatchJob(rule *autoheal.HealingRule, job *batch.Job, alert *
 	} else {
 		glog.Infof(
 			"Batch job '%s' to heal alert '%s' has been created",
-			job.ObjectMeta.Name,
+			batchJob.ObjectMeta.Name,
 			alert.Labels["alertname"],
 		)
 	}
