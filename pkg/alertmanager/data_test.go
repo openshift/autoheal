@@ -21,15 +21,18 @@ import (
 )
 
 func TestName(t *testing.T) {
-	a := new(Alert)
-	a.Labels = map[string]string{"alertname": "foo"}
+	a := Alert{
+		Labels: map[string]string{
+			"alertname": "foo",
+		},
+	}
 	if a.Name() != "foo" {
 		t.Errorf("Expected foo but got %+v", a.Name())
 	}
 }
 
 func TestNamespace(t *testing.T) {
-	a := new(Alert)
+	a := Alert{}
 	if a.Namespace() != "default" {
 		t.Errorf("Expected default but got %+v", a.Namespace())
 	}
