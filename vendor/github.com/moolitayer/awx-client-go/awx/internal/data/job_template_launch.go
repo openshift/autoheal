@@ -24,6 +24,7 @@ type JobTemplateLaunchGetResponse struct {
 
 type JobTemplateLaunchPostRequest struct {
 	ExtraVars string `json:"extra_vars,omitempty"`
+	Limit     string `json:"limit,omitempty"`
 }
 
 type JobTemplateLaunchPostResponse struct {

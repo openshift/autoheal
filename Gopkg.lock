@@ -109,8 +109,8 @@
     "awx",
     "awx/internal/data"
   ]
-  revision = "6cafdfb71f53e0e8b398d077437d7950c70289ab"
-  version = "0.0.2"
+  revision = "78fe047d29a6a1fdcf7f5f0d9487706a1784b2e2"
+  version = "0.0.3"
 
 [[projects]]
   name = "github.com/openshift/origin"
@@ -446,6 +446,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "695a61275e74a75047dff677310053630c9130742d24280b06c1b3d6bb989e1f"
+  inputs-digest = "278eb119f6152d1219df31bcf419b54935ffd997bec19122a1fbeae3ba941a6e"
   solver-name = "gps-cdcl"
   solver-version = 1

@@ -63,7 +63,7 @@ required = [
 
 [[constraint]]
   name = "github.com/moolitayer/awx-client-go"
-  version = "=0.0.2"
+  version = "=0.0.3"
 
 [[constraint]]
   name = "github.com/spf13/cobra"

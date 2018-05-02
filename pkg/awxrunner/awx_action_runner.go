@@ -143,6 +143,7 @@ func (r *Runner) launchAWXJob(
 	response, err := launchResource.Post().
 		ExtraVars(action.ExtraVars).
 		ExtraVar("alert", alert).
+		Limit(action.Limit).
 		Send()
 	if err != nil {
 		return err
