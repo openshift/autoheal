@@ -81,28 +81,30 @@ func serverRun(cmd *cobra.Command, args []string) {
 
 	// Load the Kubernetes configuration:
 	var config *rest.Config
-	_, err = os.Stat(serverKubeConfig)
-	if os.IsNotExist(err) {
-		glog.Infof(
-			"The Kubernetes configuration file '%s' doesn't exist, will try to use the "+
-				"in-cluster configuration",
-			serverKubeConfig,
-		)
-		config, err = rest.InClusterConfig()
-		if err != nil {
-			glog.Fatalf(
-				"Error loading in-cluster REST client configuration: %s",
-				err.Error(),
-			)
-		}
+	config, err = rest.InClusterConfig()
+	if err == nil {
+		glog.Infof("Using in-cluster configuration")
 	} else {
-		config, err = clientcmd.BuildConfigFromFlags(serverKubeAddress, serverKubeConfig)
-		if err != nil {
+		glog.Infof(
+			"Error loading in-cluster REST client configuration: %s. Trying kube config...",
+			err.Error(),
+		)
+		_, err = os.Stat(serverKubeConfig)
+		if os.IsNotExist(err) || os.IsPermission(err) || os.IsTimeout(err) {
 			glog.Fatalf(
-				"Error loading REST client configuration from file '%s': %s",
+				"The Kubernetes configuration file %s can not be read: ",
 				serverKubeConfig,
 				err.Error(),
 			)
+		} else {
+			config, err = clientcmd.BuildConfigFromFlags(serverKubeAddress, serverKubeConfig)
+			if err != nil {
+				glog.Fatalf(
+					"Error loading REST client configuration from file '%s': %s. No viable configuration found.",
+					serverKubeConfig,
+					err.Error(),
+				)
+			}
 		}
 	}
 
