@@ -19,6 +19,8 @@ limitations under the License.
 package config
 
 import (
+	"time"
+
 	"github.com/golang/glog"
 	"github.com/yaacov/observer/observer"
 )
@@ -64,6 +66,9 @@ func (e *eventListener) open() {
 	if e.configFilesChangedObserver == nil {
 		e.configFilesChangedObserver = new(observer.Observer)
 		e.configFilesChangedObserver.Open()
+
+		// Buffer file change events, 1e6 ns == 1 ms
+		e.configFilesChangedObserver.SetBufferDuration(1 * time.Millisecond)
 	}
 
 	// Start a change watcher over loaded config files.
