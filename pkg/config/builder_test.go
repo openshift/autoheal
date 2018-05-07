@@ -32,7 +32,7 @@ import (
 )
 
 func TestFiles(t *testing.T) {
-	l := NewLoader()
+	l := NewBuilder()
 
 	data0 := `
       awx:
@@ -56,7 +56,7 @@ func TestFiles(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	l.Files([]string{file0.Name(), file1.Name()})
-	cfg, err := l.Load()
+	cfg, err := l.Build()
 
 	expected := &Config{
 		awx: &AWXConfig{
@@ -68,15 +68,23 @@ func TestFiles(t *testing.T) {
 		throttling: &ThrottlingConfig{
 			interval: 1 * time.Hour,
 		},
-		configFiles: []string{file0.Name(), file1.Name()},
+		rules: &RulesConfig{},
 	}
 
 	if err != nil {
 		t.Errorf("An error occured! %s", err)
 	}
 
-	if !reflect.DeepEqual(cfg, expected) {
-		t.Errorf("Expected %+v but got %+v", expected, cfg)
+	if !reflect.DeepEqual(cfg.awx, expected.awx) {
+		t.Errorf("Expected %+v but got %+v", expected.awx, cfg.awx)
+	}
+
+	if !reflect.DeepEqual(cfg.throttling, expected.throttling) {
+		t.Errorf("Expected %+v but got %+v", expected.throttling, cfg.throttling)
+	}
+
+	if !reflect.DeepEqual(cfg.rules.rules, expected.rules.rules) {
+		t.Errorf("Expected %+v but got %+v", expected.rules.rules, cfg.rules.rules)
 	}
 }
 
@@ -101,7 +109,7 @@ func TestLoadFile(t *testing.T) {
 				throttling: &ThrottlingConfig{
 					interval: time.Duration(1) * time.Hour,
 				},
-				configFiles: []string{file.Name()},
+				rules: &RulesConfig{},
 			},
 		},
 		{
@@ -126,17 +134,18 @@ func TestLoadFile(t *testing.T) {
 				throttling: &ThrottlingConfig{
 					interval: time.Duration(1) * time.Hour,
 				},
-				configFiles: []string{file.Name()},
-				rules: []*autoheal.HealingRule{
-					{
-						ObjectMeta: meta.ObjectMeta{
-							Name: "start-node",
-						},
-						Labels: map[string]string{
-							"alertname": "NodeDown",
-						},
-						AWXJob: &autoheal.AWXJobAction{
-							Template: "Start node",
+				rules: &RulesConfig{
+					rules: []*autoheal.HealingRule{
+						{
+							ObjectMeta: meta.ObjectMeta{
+								Name: "start-node",
+							},
+							Labels: map[string]string{
+								"alertname": "NodeDown",
+							},
+							AWXJob: &autoheal.AWXJobAction{
+								Template: "Start node",
+							},
 						},
 					},
 				},
@@ -169,17 +178,18 @@ func TestLoadFile(t *testing.T) {
 				throttling: &ThrottlingConfig{
 					interval: time.Duration(1) * time.Hour,
 				},
-				configFiles: []string{file.Name()},
-				rules: []*autoheal.HealingRule{
-					{
-						ObjectMeta: meta.ObjectMeta{
-							Name: "start-node",
-						},
-						Labels: map[string]string{
-							"alertname": "NodeDown",
-						},
-						AWXJob: &autoheal.AWXJobAction{
-							Template: "Start node",
+				rules: &RulesConfig{
+					rules: []*autoheal.HealingRule{
+						{
+							ObjectMeta: meta.ObjectMeta{
+								Name: "start-node",
+							},
+							Labels: map[string]string{
+								"alertname": "NodeDown",
+							},
+							AWXJob: &autoheal.AWXJobAction{
+								Template: "Start node",
+							},
 						},
 					},
 				},
@@ -233,46 +243,47 @@ func TestLoadFile(t *testing.T) {
 				throttling: &ThrottlingConfig{
 					interval: time.Duration(1) * time.Hour,
 				},
-				configFiles: []string{file.Name()},
-				rules: []*autoheal.HealingRule{
-					{
-						ObjectMeta: meta.ObjectMeta{
-							Name: "start-node",
-						},
-						Labels: map[string]string{
-							"alertname": "NodeDown",
-						},
-						AWXJob: &autoheal.AWXJobAction{
-							Template: "Start node",
-						},
-					},
-					{
-						ObjectMeta: meta.ObjectMeta{
-							Name: "say-hello",
-						},
-						Labels: map[string]string{
-							"alertname": "NewFriend",
-						},
-						BatchJob: &batch.Job{
-							TypeMeta: meta.TypeMeta{
-								APIVersion: "batch/v1",
-								Kind:       "Job",
-							},
+				rules: &RulesConfig{
+					rules: []*autoheal.HealingRule{
+						{
 							ObjectMeta: meta.ObjectMeta{
-								Namespace: "default",
-								Name:      "hello",
+								Name: "start-node",
 							},
-							Spec: batch.JobSpec{
-								Template: core.PodTemplateSpec{
-									Spec: core.PodSpec{
-										Containers: []core.Container{
-											{
-												Name:    "python",
-												Image:   "python",
-												Command: []string{"python", "-c", `print("Hello {{ $labels.name }}!")`},
+							Labels: map[string]string{
+								"alertname": "NodeDown",
+							},
+							AWXJob: &autoheal.AWXJobAction{
+								Template: "Start node",
+							},
+						},
+						{
+							ObjectMeta: meta.ObjectMeta{
+								Name: "say-hello",
+							},
+							Labels: map[string]string{
+								"alertname": "NewFriend",
+							},
+							BatchJob: &batch.Job{
+								TypeMeta: meta.TypeMeta{
+									APIVersion: "batch/v1",
+									Kind:       "Job",
+								},
+								ObjectMeta: meta.ObjectMeta{
+									Namespace: "default",
+									Name:      "hello",
+								},
+								Spec: batch.JobSpec{
+									Template: core.PodTemplateSpec{
+										Spec: core.PodSpec{
+											Containers: []core.Container{
+												{
+													Name:    "python",
+													Image:   "python",
+													Command: []string{"python", "-c", `print("Hello {{ $labels.name }}!")`},
+												},
 											},
+											RestartPolicy: "Never",
 										},
-										RestartPolicy: "Never",
 									},
 								},
 							},
@@ -283,18 +294,26 @@ func TestLoadFile(t *testing.T) {
 		},
 	}
 
-	l := NewLoader()
+	l := NewBuilder()
 	l.File(file.Name())
 
 	for _, test := range configsTest {
 		file.WriteAt([]byte(test.configString), 0)
-		cfg, err := l.Load()
+		cfg, err := l.Build()
 		if err != nil {
 			t.Errorf("An error occured! %s", err)
 		}
 
-		if !reflect.DeepEqual(cfg, test.expected) {
-			t.Errorf("Expected %+v but got %+v", test.expected, cfg)
+		if !reflect.DeepEqual(cfg.awx, test.expected.awx) {
+			t.Errorf("Expected %+v but got %+v", test.expected.awx, cfg.awx)
+		}
+
+		if !reflect.DeepEqual(cfg.throttling, test.expected.throttling) {
+			t.Errorf("Expected %+v but got %+v", test.expected.throttling, cfg.throttling)
+		}
+
+		if !reflect.DeepEqual(cfg.rules.rules, test.expected.rules.rules) {
+			t.Errorf("Expected %+v but got %+v", test.expected.rules.rules, cfg.rules.rules)
 		}
 	}
 }
@@ -332,17 +351,18 @@ func TestLoadDir(t *testing.T) {
 		throttling: &ThrottlingConfig{
 			interval: time.Duration(1) * time.Hour,
 		},
-		configFiles: []string{newFileName},
-		rules: []*autoheal.HealingRule{
-			{
-				ObjectMeta: meta.ObjectMeta{
-					Name: "start-node",
-				},
-				Labels: map[string]string{
-					"alertname": "NodeDown",
-				},
-				AWXJob: &autoheal.AWXJobAction{
-					Template: "Start node",
+		rules: &RulesConfig{
+			rules: []*autoheal.HealingRule{
+				{
+					ObjectMeta: meta.ObjectMeta{
+						Name: "start-node",
+					},
+					Labels: map[string]string{
+						"alertname": "NodeDown",
+					},
+					AWXJob: &autoheal.AWXJobAction{
+						Template: "Start node",
+					},
 				},
 			},
 		},
@@ -350,16 +370,24 @@ func TestLoadDir(t *testing.T) {
 
 	file.WriteString(data)
 
-	l := NewLoader()
+	l := NewBuilder()
 	l.File(dir)
 
-	cfg, err := l.Load()
+	cfg, err := l.Build()
 
 	if err != nil {
 		t.Errorf("An error occured! %s", err)
 	}
 
-	if !reflect.DeepEqual(cfg, expected) {
-		t.Errorf("Expected %+v but got %+v", expected, cfg)
+	if !reflect.DeepEqual(cfg.awx, expected.awx) {
+		t.Errorf("Expected %+v but got %+v", expected.awx, cfg.awx)
+	}
+
+	if !reflect.DeepEqual(cfg.throttling, expected.throttling) {
+		t.Errorf("Expected %+v but got %+v", expected.throttling, cfg.throttling)
+	}
+
+	if !reflect.DeepEqual(cfg.rules.rules, expected.rules.rules) {
+		t.Errorf("Expected %+v but got %+v", expected.rules.rules, cfg.rules.rules)
 	}
 }

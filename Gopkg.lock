@@ -14,10 +14,10 @@
   version = "v1.4.7"
 
 [[projects]]
+  branch = "master"
   name = "github.com/ghodss/yaml"
   packages = ["."]
-  revision = "0ca9ea5df5451ffdf184b4428c902747c2c11cd7"
-  version = "v1.0.0"
+  revision = "e9ed3c6dfb39bb1a32197cb10d527906fe4da4b6"
 
 [[projects]]
   name = "github.com/gogo/protobuf"
@@ -182,8 +182,8 @@
     "observer",
     "observer/set"
   ]
-  revision = "e953396b841b524ef5e129d27d826101a92b7dbf"
-  version = "1.4.1"
+  revision = "5f9a58b10368b5b8c65f019e78c7d71012128552"
+  version = "1.5.10"
 
 [[projects]]
   branch = "master"
@@ -446,6 +446,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "278eb119f6152d1219df31bcf419b54935ffd997bec19122a1fbeae3ba941a6e"
+  inputs-digest = "22972a7170896994e74b76f3359a7570cf40edd71b0714b35ab588486483fd5f"
   solver-name = "gps-cdcl"
   solver-version = 1

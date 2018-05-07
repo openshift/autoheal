@@ -19,54 +19,33 @@ limitations under the License.
 package config
 
 import (
-	"bytes"
-	"time"
+	"fmt"
+	"io/ioutil"
+	"os"
+	"path/filepath"
+	"sort"
+	"strings"
+	"sync"
 
+	"github.com/ghodss/yaml"
 	"github.com/golang/glog"
 	"github.com/yaacov/observer/observer"
 
 	"github.com/openshift/autoheal/pkg/apis/autoheal"
+	"github.com/openshift/autoheal/pkg/internal/data"
 )
 
 // Config is a read only view of the configuration of the auto-heal service.
 //
 type Config struct {
-	awx                 *AWXConfig
-	throttling          *ThrottlingConfig
-	rules               []*autoheal.HealingRule
-	configFiles         []string // config files loaded by the loader
-	configFilesObserver *observer.Observer
-}
+	awx        *AWXConfig
+	throttling *ThrottlingConfig
+	rules      *RulesConfig
+	listener   *eventListener
 
-// ChangeEvent contains config change event info
-//
-type ChangeEvent struct {
-	// Empty
-}
-
-// ChangeListener a listener function that can be called when config event change is triggered.
-//
-type ChangeListener func(*ChangeEvent)
-
-// ThrottlingConfig is a read only view of the section of the configuration that describes how to
-// throttle the execution of healing rules.
-//
-type ThrottlingConfig struct {
-	interval time.Duration
-}
-
-// AWX is a read only view of section of the configuration of the auto-heal service that describes
-// how to connect to the AWX server, and how to launch jobs from templates.
-//
-type AWXConfig struct {
-	address                string
-	proxy                  string
-	user                   string
-	password               string
-	insecure               bool
-	ca                     *bytes.Buffer
-	project                string
-	jobStatusCheckInterval time.Duration
+	// The names of the configuration files, in the order that they should be loaded:
+	files     []string
+	loadMutex *sync.Mutex
 }
 
 // AWX returns a read only view of the section of the configuration of the auto-heal service that
@@ -76,67 +55,6 @@ func (c *Config) AWX() *AWXConfig {
 	return c.awx
 }
 
-// Address returns the complete address of the API of the AWX server, including the /api suffix,
-// but not the /v1 or /v2 suffixes.
-//
-func (c *AWXConfig) Address() string {
-	return c.address
-}
-
-// Proxy returns the complete address of the proxy server that the auto-heal service should use to
-// connect to the API of the AWX server. The format is an URL, where only the host name and the port
-// number are relevant:
-//
-//	http://myproxy.example.com:3128
-//
-// An empty string means that no proxy should be used.
-//
-func (c *AWXConfig) Proxy() string {
-	return c.proxy
-}
-
-// User returns the name of the user that the auto-heal service will use to connect to the AWX
-// server.
-//
-func (c *AWXConfig) User() string {
-	return c.user
-}
-
-// Password returns the password of the user that the auto-heal service will use to connect to
-// the AWX server.
-//
-func (c *AWXConfig) Password() string {
-	return c.password
-}
-
-// CA returns the PEM encoded certificates of the authorities that should be trusted when checking
-// the TLS certificate presented by the AWX server. If not provided the system cert pool will be used.
-//
-func (c *AWXConfig) CA() []byte {
-	if c.ca == nil {
-		return nil
-	}
-	return c.ca.Bytes()
-}
-
-// Project returns the name of the AWX project that contains the auto-heal job templates.
-//
-func (c *AWXConfig) Project() string {
-	return c.project
-}
-
-// Whether to use insecure connection to connect to AWX.
-//
-func (c *AWXConfig) Insecure() bool {
-	return c.insecure
-}
-
-// Return the duration of how often the active AWX jobs status is checked
-//
-func (c *AWXConfig) JobStatusCheckInterval() time.Duration {
-	return c.jobStatusCheckInterval
-}
-
 // Throttling returns a read only view of the section of the configuration that describes how to
 // throttle the execution of healing rules.
 //
@@ -144,47 +62,181 @@ func (c *Config) Throttling() *ThrottlingConfig {
 	return c.throttling
 }
 
-// Interval returns the throttling interval for the execution of the actions defined in the healing
-// rules.
-//
-func (t *ThrottlingConfig) Interval() time.Duration {
-	return t.interval
-}
-
 // Rules returns the list of healing rules defined in the configuration.
 //
 func (c *Config) Rules() []*autoheal.HealingRule {
-	return c.rules
+	return c.rules.rules
 }
 
-// CloseChangeObserver close the change obeserver channels
+// ShutDown close the change obeserver channels
 //
-func (c *Config) CloseChangeObserver() {
-	c.configFilesObserver.Close()
+func (c *Config) ShutDown() {
+	c.listener.shutDown()
 }
 
-// AddChangeListener to be called on change events
+// AddChangeListener to be called on config object update
 //
 func (c *Config) AddChangeListener(listener ChangeListener) {
-	// add a new listener to configFilesObserver
-	c.configFilesObserver.AddListener(func(_ interface{}) {
-		listener(&ChangeEvent{})
+	c.listener.addChangeListener(listener)
+}
+
+// watch config files for changes
+//
+func (c *Config) watch() {
+	// Lock this function
+	c.loadMutex.Lock()
+	defer c.loadMutex.Unlock()
+
+	e := c.listener
+	e.open()
+
+	// Load config files
+	c.load()
+
+	// Start watching config files for modifications.
+	configFiles := c.configFiles()
+	err := e.configFilesChangedObserver.Watch(configFiles)
+	if err != nil {
+		glog.Errorf("watch [Error]: %v", err)
+	}
+	glog.Infof("watch: %v", configFiles)
+
+	// Load new configuration when config files change.
+	e.configFilesChangedObserver.AddListener(func(event interface{}) {
+		// Lock this function
+		c.loadMutex.Lock()
+		defer c.loadMutex.Unlock()
+
+		glog.Infof("eventListener: %v", event)
+
+		// Load config files and emit config changed event.
+		err := c.load()
+		if err != nil {
+			glog.Errorf("eventListener [Error]: %v", err)
+			return
+		}
+
+		// If config files loaded succesfully emit config object changed event.
+		e.configFilesLoadedObserver.Emit(observer.WatchEvent{Name: "Config loaded"})
 	})
 }
 
-// Watch config files for changes
+// load the configuration files and returns an error on fail.
 //
-func (c *Config) Watch() Config {
-	// Start a change watcher over loaded config files.
-	c.configFilesObserver = new(observer.Observer)
-	c.configFilesObserver.Open()
+func (c *Config) load() (err error) {
+	// Always clean rules before loading new ones
+	c.rules.clear()
 
-	// Start/Re-start watching config files for modifications.
-	err := c.configFilesObserver.Watch(c.configFiles)
-	if err != nil {
-		glog.Errorf("Error watching config files: %v", err)
+	// Merge the contents of the files into the empty configuration:
+	for _, file := range c.files {
+		var info os.FileInfo
+		info, err = os.Stat(file)
+		if err != nil {
+			err = fmt.Errorf("Can't check if '%s' is a file or a directory: %s", file, err)
+			return
+		}
+		if info.IsDir() {
+			err = c.mergeDir(file)
+			if err != nil {
+				err = fmt.Errorf("Can't load configuration directory '%s': %s", file, err)
+				return
+			}
+		} else {
+			err = c.mergeFile(file)
+			if err != nil {
+				err = fmt.Errorf("Can't load configuration file '%s': %s", file, err)
+				return
+			}
+		}
 	}
-	glog.Infof("Watching config files: %v", c.configFiles)
 
-	return *c
+	return
+}
+
+func (c *Config) mergeDir(dir string) error {
+	// List the files in the directory:
+	infos, err := ioutil.ReadDir(dir)
+	if err != nil {
+		return err
+	}
+	files := make([]string, 0, len(infos))
+	for _, info := range infos {
+		if !info.IsDir() {
+			name := info.Name()
+			if strings.HasSuffix(name, ".yml") || strings.HasSuffix(name, ".yaml") {
+				file := filepath.Join(dir, name)
+				files = append(files, file)
+			}
+		}
+	}
+
+	// Load the files in alphabetical order:
+	sort.Strings(files)
+	for _, file := range files {
+		err := c.mergeFile(file)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (c *Config) mergeFile(file string) error {
+	var err error
+
+	// Read the content of the file:
+	glog.Infof("Loading configuration from '%s'", file)
+	var content []byte
+	content, err = ioutil.ReadFile(file)
+	if err != nil {
+		return err
+	}
+
+	// Parse the YAML inside the file:
+	var decoded data.Config
+	err = yaml.Unmarshal(content, &decoded)
+	if err != nil {
+		return err
+	}
+
+	// Merge the configuration data from the file with the existing configuration:
+	if decoded.AWX != nil {
+		err = c.awx.merge(decoded.AWX)
+		if err != nil {
+			return err
+		}
+	}
+	if decoded.Throttling != nil {
+		err = c.throttling.merge(decoded.Throttling)
+		if err != nil {
+			return err
+		}
+	}
+	if decoded.Rules != nil {
+		err = c.rules.merge(decoded.Rules)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (c *Config) configFiles() (files []string) {
+	// Merge the contents of the files into the empty configuration:
+	for _, file := range c.files {
+		info, err := os.Stat(file)
+		if err != nil {
+			// Pass
+		}
+		if info.IsDir() {
+			files = append(files, filepath.Join(file, "*.yml"))
+			files = append(files, filepath.Join(file, "*.yaml"))
+		} else {
+			files = append(files, file)
+		}
+	}
+
+	return
 }

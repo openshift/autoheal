@@ -23,7 +23,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"sync"
 	"time"
 
 	"github.com/golang/glog"
@@ -57,9 +56,6 @@ type HealerBuilder struct {
 // Prometheus configuration and to start or reload it when there are changes.
 //
 type Healer struct {
-	// The configuration loader.
-	loader *config.Loader
-
 	// The configuration.
 	config *config.Config
 
@@ -79,9 +75,6 @@ type Healer struct {
 
 	// a map of ActionRunner which run awx/batch/etc actions.
 	actionRunners map[ActionRunnerType]ActionRunner
-
-	// Mutex to prevent simultaneous reloads of configuration.
-	reloadMutex *sync.Mutex
 }
 
 // NewHealerBuilder creates a new builder for healers.
@@ -120,28 +113,28 @@ func (b *HealerBuilder) KubernetesClient(client kubernetes.Interface) *HealerBui
 // Build creates the healer using the configuration stored in the builder.
 //
 func (b *HealerBuilder) Build() (h *Healer, err error) {
-	// Load the configuration files:
+	var cfg *config.Config
+
+	// Create new config and load the configuration files:
 	if len(b.configFiles) == 0 {
 		err = fmt.Errorf("No configuration file has been provided")
 		return
 	}
-	loader := config.NewLoader().
+	cfg, err = config.NewBuilder().
 		Client(b.k8sClient).
-		Files(b.configFiles)
-	config, err := loader.Load()
+		Files(b.configFiles).
+		Build()
 	if err != nil {
 		return
 	}
-	// Start watching for changes in config files
-	config.Watch()
 
 	// Send to the log a summary of the configuration:
-	glog.Infof("AWX user is '%s'", config.AWX().User())
-	glog.Infof("AWX project is '%s'", config.AWX().Project())
+	glog.Infof("AWX user is '%s'", cfg.AWX().User())
+	glog.Infof("AWX project is '%s'", cfg.AWX().Project())
 
 	// Create the actions memory:
 	actionMemory, err := memory.NewShortTermMemoryBuilder().
-		Duration(config.Throttling().Interval()).
+		Duration(cfg.Throttling().Interval()).
 		Build()
 	if err != nil {
 		return
@@ -150,8 +143,7 @@ func (b *HealerBuilder) Build() (h *Healer, err error) {
 	// Allocate the healer:
 	h = new(Healer)
 	h.k8sClient = b.k8sClient
-	h.loader = loader
-	h.config = config
+	h.config = cfg
 	h.actionMemory = actionMemory
 
 	// Initialize the map of rules:
@@ -164,9 +156,6 @@ func (b *HealerBuilder) Build() (h *Healer, err error) {
 	// allocate new action runners
 	h.actionRunners = make(map[ActionRunnerType]ActionRunner)
 
-	// initialize the reload mutex
-	h.reloadMutex = &sync.Mutex{}
-
 	return
 }
 
@@ -176,6 +165,7 @@ func (h *Healer) Run(stopCh <-chan struct{}) error {
 	defer runtime.HandleCrash()
 	defer h.rulesQueue.ShutDown()
 	defer h.alertsQueue.ShutDown()
+	defer h.config.ShutDown()
 
 	// Start the workers:
 	go wait.Until(h.runRulesWorker, time.Second, stopCh)
@@ -205,8 +195,14 @@ func (h *Healer) Run(stopCh <-chan struct{}) error {
 
 	glog.Info("Workers started")
 
-	// Load rules cache from config
+	// Reload the rules cache.
 	h.reloadRulesCache()
+
+	// Add a listener that will reload the rules cache
+	// on config object change.
+	h.config.AddChangeListener(func(_ *config.ChangeEvent) {
+		h.reloadRulesCache()
+	})
 
 	// Start the web server:
 	http.Handle("/metrics", metrics.Handler())
@@ -215,13 +211,6 @@ func (h *Healer) Run(stopCh <-chan struct{}) error {
 	server := &http.Server{Addr: ":9099"}
 	go server.ListenAndServe()
 	glog.Info("Web server started")
-
-	// Add a listener that will reload the config files
-	// on config file modification.
-	h.config.AddChangeListener(func(e *config.ChangeEvent) {
-		h.onChangeEvent(e)
-	})
-	defer h.config.CloseChangeObserver()
 
 	// Wait till we are requested to stop:
 	<-stopCh
@@ -233,19 +222,6 @@ func (h *Healer) Run(stopCh <-chan struct{}) error {
 	}
 
 	return nil
-}
-
-// onChangeEvent reload config files and
-// refresh rules in rules cache (by sending "Deleted" + "Added" to queue).
-//
-func (h *Healer) onChangeEvent(e *config.ChangeEvent) {
-	h.reloadMutex.Lock()
-
-	glog.Info("Event: Config file modified")
-	h.loader.Load()
-	h.reloadRulesCache()
-
-	h.reloadMutex.Unlock()
 }
 
 // Reload all rules in rules cache (by sending "Deleted" + "Added" to queue).

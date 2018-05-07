@@ -20,6 +20,8 @@ import (
 	"fmt"
 	"log"
 	"path/filepath"
+	"sync"
+	"time"
 
 	"github.com/fsnotify/fsnotify"
 
@@ -34,18 +36,26 @@ type Listener func(interface{})
 
 // Observer emplements the observer pattern.
 type Observer struct {
-	quit          chan bool
-	events        chan interface{}
-	watcher       *fsnotify.Watcher
-	watchPatterns set.Set
-	watchDirs     set.Set
-	listeners     []Listener
-	Verbose       bool
+	quit           chan bool
+	events         chan interface{}
+	watcher        *fsnotify.Watcher
+	watchPatterns  set.Set
+	watchDirs      set.Set
+	listeners      []Listener
+	mutex          *sync.Mutex
+	bufferEvents   []interface{}
+	bufferDuration time.Duration
+	Verbose        bool
 }
 
 // Open the observer channles and run the event loop,
 // it will return an error if event loop already running.
 func (o *Observer) Open() error {
+	// Check for mutex
+	if o.mutex == nil {
+		o.mutex = &sync.Mutex{}
+	}
+
 	if o.events != nil {
 		return fmt.Errorf("Observer already inititated.")
 	}
@@ -81,11 +91,18 @@ func (o *Observer) Close() error {
 
 // AddListener adds a listener function to run on event,
 // the listener function will recive the event object as argument.
-// It will return an error if adding the new listener fails.
-func (o *Observer) AddListener(l Listener) error {
-	o.listeners = append(o.listeners, l)
+func (o *Observer) AddListener(l Listener) {
+	// Check for mutex
+	if o.mutex == nil {
+		o.mutex = &sync.Mutex{}
+	}
 
-	return nil
+	// Lock:
+	// 1. operations on array listeners
+	o.mutex.Lock()
+	defer o.mutex.Unlock()
+
+	o.listeners = append(o.listeners, l)
 }
 
 // Emit an event, and event can be of any type, when event is triggered all
@@ -97,6 +114,16 @@ func (o *Observer) Emit(event interface{}) {
 // Watch for file changes, watching a file can be done using exact file name,
 // or shell pattern matching.
 func (o *Observer) Watch(files []string) error {
+	// Check for mutex
+	if o.mutex == nil {
+		o.mutex = &sync.Mutex{}
+	}
+
+	// Lock:
+	// 1. operations on watchPatterns set.
+	o.mutex.Lock()
+	defer o.mutex.Unlock()
+
 	// Init watcher on first call.
 	if o.watcher == nil {
 		err := o.watchLoop()
@@ -121,7 +148,7 @@ func (o *Observer) Watch(files []string) error {
 		// remove the './' prefix when cleaning filename.
 		pattern := fmt.Sprintf("%s%s%s", dir, string(filepath.Separator), base)
 
-		// Logging file patterns
+		// Logging file patterns.
 		if o.Verbose {
 			log.Printf("[Debug] Adding pattern: %s", pattern)
 		}
@@ -143,7 +170,7 @@ func (o *Observer) Watch(files []string) error {
 			return err
 		}
 
-		// Logging watched directories
+		// Logging watched directories.
 		if o.Verbose {
 			log.Printf("[Debug] Watching dir: %s", d)
 		}
@@ -152,11 +179,61 @@ func (o *Observer) Watch(files []string) error {
 	return nil
 }
 
-// handleEvent handle an event.
-func (o *Observer) handleEvent(event interface{}) {
-	// Run all listeners for this event.
+// SetBufferDuration set the event buffer damping duration.
+func (o *Observer) SetBufferDuration(d time.Duration) {
+	// Set the buffer duration.
+	o.bufferDuration = d
+}
+
+// sendEvent send one or more events to the observer listeners.
+func (o *Observer) sendEvent(event interface{}) {
+	// NOTE: we do not lock this function directly.
+	//
+	// All functions using sendEvent must be locked
+	// for operations using o.listeners.
 	for _, listener := range o.listeners {
 		go listener(event)
+	}
+}
+
+// handleEvent handle an event.
+func (o *Observer) handleEvent(event interface{}, f *string) {
+	// Lock:
+	// 1. operations on listeners array (sendEvent).
+	// 2. operations on bufferEvents array.
+	// 3. operations using the watchPatterns set (matchFile).
+	o.mutex.Lock()
+	defer o.mutex.Unlock()
+
+	// Check for file name match, nil is match all.
+	if !o.matchFile(f) {
+		return
+	}
+
+	// If we do not buffer events, just send this event now.
+	if o.bufferDuration == 0 {
+		o.sendEvent(event)
+		return
+	}
+
+	// Add new event to the event buffer.
+	o.bufferEvents = append(o.bufferEvents, event)
+
+	// If this is the first event, set a timeout function.
+	if len(o.bufferEvents) == 1 {
+		time.AfterFunc(o.bufferDuration, func() {
+			// Lock:
+			// 1. operations on listeners array (sendEvent).
+			// 2. operations on bufferEvents array.
+			o.mutex.Lock()
+			defer o.mutex.Unlock()
+
+			// Send all events in event buffer.
+			o.sendEvent(o.bufferEvents)
+
+			// Reset events buffer.
+			o.bufferEvents = make([]interface{}, 0)
+		})
 	}
 }
 
@@ -167,7 +244,7 @@ func (o *Observer) eventLoop() error {
 		for {
 			select {
 			case event := <-o.events:
-				o.handleEvent(event)
+				o.handleEvent(event, nil)
 			case <-o.quit:
 				return
 			}
@@ -178,16 +255,23 @@ func (o *Observer) eventLoop() error {
 }
 
 // matchFile returns a boolean asserting whether this file is watched or not.
-func (o Observer) matchFile(f string) (match bool) {
+func (o Observer) matchFile(f *string) (match bool) {
+	// If no file, return true.
+	if f == nil {
+		match = true
+
+		return
+	}
+
 	// Look for an exact match.
-	match = o.watchPatterns.Has(f)
+	match = o.watchPatterns.Has(*f)
 	if match {
 		return
 	}
 
 	// Try to match shell file name pattern.
 	for _, p := range o.watchPatterns.Values() {
-		match, _ = filepath.Match(p, f)
+		match, _ = filepath.Match(p, *f)
 		if match {
 			return
 		}
@@ -210,20 +294,18 @@ func (o *Observer) watchLoop() error {
 		for {
 			select {
 			case event := <-o.watcher.Events:
-				// Logging all events
+				// Logging all events.
 				if o.Verbose {
 					log.Printf("[Debug] Received event: %v", event)
 				}
 
 				if event.Op&fsnotify.Write == fsnotify.Write {
 					// Check for event filename pattern match.
-					if o.matchFile(event.Name) {
-						o.handleEvent(WatchEvent(event))
-					}
+					o.handleEvent(WatchEvent(event), &event.Name)
 				}
 			case err := <-o.watcher.Errors:
 				if err != nil {
-					o.handleEvent(err)
+					o.handleEvent(err, nil)
 				}
 			}
 		}
