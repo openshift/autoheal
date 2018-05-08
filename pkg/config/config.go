@@ -80,21 +80,17 @@ func (c *Config) AddChangeListener(listener ChangeListener) {
 	c.listener.addChangeListener(listener)
 }
 
-// watch config files for changes
+// watch starts watching the configuration files.
 //
-func (c *Config) watch() {
+func (c *Config) watch() error {
 	e := c.listener
 	e.open()
-
-	// Load config files
-	c.load()
 
 	// Start watching config files for modifications.
 	configFiles := c.configFiles()
 	err := e.configFilesChangedObserver.Watch(configFiles)
 	if err != nil {
-		glog.Errorf("Can't watch configuration files: %s", err)
-		return
+		return err
 	}
 	for _, file := range configFiles {
 		glog.Infof("Watching configuration file '%s'", file)
@@ -113,6 +109,8 @@ func (c *Config) watch() {
 		// If config files loaded succesfully emit config object changed event.
 		e.configFilesLoadedObserver.Emit(observer.WatchEvent{Name: "Config loaded"})
 	})
+
+	return err
 }
 
 // load the configuration files and returns an error on fail.
