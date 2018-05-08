@@ -178,7 +178,7 @@ func (h *Healer) Run(stopCh <-chan struct{}) error {
 		Build()
 
 	if err != nil {
-		glog.Warningf("Error building AWX Runner: %s", err)
+		glog.Warningf("Error building AWX runner: %s", err)
 	}
 
 	batchRunner, err := batchrunner.NewBuilder().
@@ -186,7 +186,7 @@ func (h *Healer) Run(stopCh <-chan struct{}) error {
 		Build()
 
 	if err != nil {
-		glog.Warningf("Error building Batch Runner: %s", err)
+		glog.Warningf("Error building batch runner: %s", err)
 	}
 
 	// initiailize runners.
