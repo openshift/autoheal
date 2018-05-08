@@ -173,7 +173,7 @@ func (t *ObjectTemplate) processValue(input reflect.Value, data interface{}) (ou
 			output, err = t.processValue(reflect.ValueOf(output.Interface()), data)
 		default:
 			if glog.V(3) {
-				glog.Infof("Unsupported value kind: %v, skipping templating", output.Kind())
+				glog.Infof("Unsupported value kind '%s', skipping templating", output.Kind())
 			}
 		}
 	}

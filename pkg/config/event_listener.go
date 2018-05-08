@@ -21,7 +21,6 @@ package config
 import (
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/yaacov/observer/observer"
 )
 
@@ -47,7 +46,6 @@ type eventListener struct {
 func (e *eventListener) addChangeListener(listener ChangeListener) {
 	// add a new listener to configFilesChangedObserver
 	e.configFilesLoadedObserver.AddListener(func(_ interface{}) {
-		glog.Info("eventListener: Config object changed")
 		listener(&ChangeEvent{})
 	})
 }

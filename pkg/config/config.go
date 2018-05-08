@@ -97,22 +97,24 @@ func (c *Config) watch() {
 	configFiles := c.configFiles()
 	err := e.configFilesChangedObserver.Watch(configFiles)
 	if err != nil {
-		glog.Errorf("watch [Error]: %v", err)
+		glog.Errorf("Can't watch configuration files: %s", err)
+		return
 	}
-	glog.Infof("watch: %v", configFiles)
+	for _, file := range configFiles {
+		glog.Infof("Watching configuration file '%s'", file)
+	}
 
 	// Load new configuration when config files change.
-	e.configFilesChangedObserver.AddListener(func(event interface{}) {
+	e.configFilesChangedObserver.AddListener(func(_ interface{}) {
 		// Lock this function
 		c.loadMutex.Lock()
 		defer c.loadMutex.Unlock()
 
-		glog.Infof("eventListener: %v", event)
-
-		// Load config files and emit config changed event.
+		// Reload the configuration files:
+		glog.Infof("Configuration files have changed")
 		err := c.load()
 		if err != nil {
-			glog.Errorf("eventListener [Error]: %v", err)
+			glog.Errorf("Can't reload configuration files: %s", err)
 			return
 		}
 
@@ -186,7 +188,7 @@ func (c *Config) mergeFile(file string) error {
 	var err error
 
 	// Read the content of the file:
-	glog.Infof("Loading configuration from '%s'", file)
+	glog.Infof("Loading configuration file '%s'", file)
 	var content []byte
 	content, err = ioutil.ReadFile(file)
 	if err != nil {

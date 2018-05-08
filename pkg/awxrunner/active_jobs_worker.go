@@ -24,7 +24,7 @@ import (
 )
 
 func (r *Runner) runActiveJobsWorker() {
-	glog.Infof("Going over active jobs queue.")
+	glog.Infof("Going over active jobs queue")
 
 	finishedJobs := make([]int, 0)
 
@@ -50,7 +50,7 @@ func (r *Runner) runActiveJobsWorker() {
 	// remove finished jobs from the queue
 	for _, job := range finishedJobs {
 		glog.Infof(
-			"Removing finished job `%v` from queue ",
+			"Removing finished job '%v' from queue ",
 			job,
 		)
 		r.activeJobs.Delete(job)
