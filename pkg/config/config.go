@@ -83,10 +83,6 @@ func (c *Config) AddChangeListener(listener ChangeListener) {
 // watch config files for changes
 //
 func (c *Config) watch() {
-	// Lock this function
-	c.loadMutex.Lock()
-	defer c.loadMutex.Unlock()
-
 	e := c.listener
 	e.open()
 
@@ -106,10 +102,6 @@ func (c *Config) watch() {
 
 	// Load new configuration when config files change.
 	e.configFilesChangedObserver.AddListener(func(_ interface{}) {
-		// Lock this function
-		c.loadMutex.Lock()
-		defer c.loadMutex.Unlock()
-
 		// Reload the configuration files:
 		glog.Infof("Configuration files have changed")
 		err := c.load()
@@ -126,6 +118,11 @@ func (c *Config) watch() {
 // load the configuration files and returns an error on fail.
 //
 func (c *Config) load() (err error) {
+	// Loading the configuration modifies the members of the structure in place, so we need to avoid
+	// running it simultaneously from multiple goroutines:
+	c.loadMutex.Lock()
+	defer c.loadMutex.Unlock()
+
 	// Always clean rules before loading new ones
 	c.rules.clear()
 
