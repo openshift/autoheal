@@ -84,7 +84,7 @@ func (r *Runner) RunAction(rule *autoheal.HealingRule, action interface{}, alert
 
 	// Create the connection to the AWX server:
 	connection, err := awx.NewConnectionBuilder().
-		Url(awxAddress).
+		URL(awxAddress).
 		Proxy(awxProxy).
 		Username(awxUser).
 		Password(awxPassword).
@@ -176,7 +176,7 @@ func (r *Runner) checkAWXJobStatus(jobID int) (finished bool, err error) {
 
 	// Create the connection to the AWX server:
 	connection, err := awx.NewConnectionBuilder().
-		Url(awxAddress).
+		URL(awxAddress).
 		Proxy(awxProxy).
 		Username(awxUser).
 		Password(awxPassword).
