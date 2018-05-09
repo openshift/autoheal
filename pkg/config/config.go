@@ -44,8 +44,9 @@ type Config struct {
 	listener   *eventListener
 
 	// The names of the configuration files, in the order that they should be loaded:
-	files     []string
-	loadMutex *sync.Mutex
+	files         []string
+	loadMutex     *sync.Mutex
+	listenerMutex *sync.Mutex
 }
 
 // AWX returns a read only view of the section of the configuration of the auto-heal service that
@@ -98,6 +99,12 @@ func (c *Config) watch() error {
 
 	// Load new configuration when config files change.
 	e.configFilesChangedObserver.AddListener(func(_ interface{}) {
+		// This listener function call the load and continue assuming
+		// no other loading can be called, so we need to avoid
+		// running it simultaneously from multiple goroutines:
+		c.listenerMutex.Lock()
+		defer c.listenerMutex.Unlock()
+
 		// Reload the configuration files:
 		glog.Infof("Configuration files have changed")
 		err := c.load()

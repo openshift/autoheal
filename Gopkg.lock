@@ -182,8 +182,8 @@
     "observer",
     "observer/set"
   ]
-  revision = "5f9a58b10368b5b8c65f019e78c7d71012128552"
-  version = "1.5.10"
+  revision = "630eaae9378a834969514735c8d4086393c80ff6"
+  version = "1.5.11"
 
 [[projects]]
   branch = "master"
@@ -446,6 +446,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "22972a7170896994e74b76f3359a7570cf40edd71b0714b35ab588486483fd5f"
+  inputs-digest = "7f9b808836d9b49152c3d3c41374118baa8ab7cda1f482fe9883eedeb786e75a"
   solver-name = "gps-cdcl"
   solver-version = 1
