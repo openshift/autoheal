@@ -104,9 +104,10 @@ func (b *Builder) Build() (c *Config, err error) {
 		rules: &RulesConfig{
 			codec: b.codec,
 		},
-		listener:  &eventListener{},
-		files:     b.files,
-		loadMutex: &sync.Mutex{},
+		listener:      &eventListener{},
+		files:         b.files,
+		loadMutex:     &sync.Mutex{},
+		listenerMutex: &sync.Mutex{},
 	}
 
 	// Do the initial load of the configuration files:
