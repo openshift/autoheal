@@ -109,8 +109,17 @@ func (b *Builder) Build() (c *Config, err error) {
 		loadMutex: &sync.Mutex{},
 	}
 
-	// Load and watch configuration files
-	c.watch()
+	// Do the initial load of the configuration files:
+	err = c.load()
+	if err != nil {
+		return
+	}
+
+	// Start watching the configuration files:
+	err = c.watch()
+	if err != nil {
+		return
+	}
 
 	return
 }
