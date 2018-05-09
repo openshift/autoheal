@@ -57,6 +57,10 @@ func TestFiles(t *testing.T) {
 
 	l.Files([]string{file0.Name(), file1.Name()})
 	cfg, err := l.Build()
+	if err != nil {
+		t.Errorf("An error occured! %s", err)
+	}
+	defer cfg.ShutDown()
 
 	expected := &Config{
 		awx: &AWXConfig{
@@ -298,23 +302,26 @@ func TestLoadFile(t *testing.T) {
 	l.File(file.Name())
 
 	for _, test := range configsTest {
-		file.WriteAt([]byte(test.configString), 0)
-		cfg, err := l.Build()
-		if err != nil {
-			t.Errorf("An error occured! %s", err)
-		}
+		func() {
+			file.WriteAt([]byte(test.configString), 0)
+			cfg, err := l.Build()
+			if err != nil {
+				t.Errorf("An error occured! %s", err)
+			}
+			defer cfg.ShutDown()
 
-		if !reflect.DeepEqual(cfg.awx, test.expected.awx) {
-			t.Errorf("Expected %+v but got %+v", test.expected.awx, cfg.awx)
-		}
+			if !reflect.DeepEqual(cfg.awx, test.expected.awx) {
+				t.Errorf("Expected %+v but got %+v", test.expected.awx, cfg.awx)
+			}
 
-		if !reflect.DeepEqual(cfg.throttling, test.expected.throttling) {
-			t.Errorf("Expected %+v but got %+v", test.expected.throttling, cfg.throttling)
-		}
+			if !reflect.DeepEqual(cfg.throttling, test.expected.throttling) {
+				t.Errorf("Expected %+v but got %+v", test.expected.throttling, cfg.throttling)
+			}
 
-		if !reflect.DeepEqual(cfg.rules.rules, test.expected.rules.rules) {
-			t.Errorf("Expected %+v but got %+v", test.expected.rules.rules, cfg.rules.rules)
-		}
+			if !reflect.DeepEqual(cfg.rules.rules, test.expected.rules.rules) {
+				t.Errorf("Expected %+v but got %+v", test.expected.rules.rules, cfg.rules.rules)
+			}
+		}()
 	}
 }
 
@@ -374,10 +381,10 @@ func TestLoadDir(t *testing.T) {
 	l.File(dir)
 
 	cfg, err := l.Build()
-
 	if err != nil {
 		t.Errorf("An error occured! %s", err)
 	}
+	defer cfg.ShutDown()
 
 	if !reflect.DeepEqual(cfg.awx, expected.awx) {
 		t.Errorf("Expected %+v but got %+v", expected.awx, cfg.awx)
