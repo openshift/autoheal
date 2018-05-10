@@ -17,6 +17,7 @@ limitations under the License.
 package main
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -50,7 +51,7 @@ func init() {
 	serverFlags.StringVar(
 		&serverKubeConfig,
 		"kubeconfig",
-		filepath.Join(homedir.HomeDir(), ".kube", "config"),
+		"",
 		"Path to a Kubernetes client configuration file. Only required when running "+
 			"outside of a cluster.",
 	)
@@ -73,37 +74,77 @@ func init() {
 	)
 }
 
-func serverRun(cmd *cobra.Command, args []string) {
-	var err error
+func kubeConfigPath(serverKubeConfig string) (kubeConfig string, err error) {
+	// The loading order follows these rules:
+	// 1. If the –kubeconfig flag is set,
+	// then only that file is loaded. The flag may only be set once.
+	// 2. If $KUBECONFIG environment variable is set, use it.
+	// 3. Otherwise, ${HOME}/.kube/config is used.
+	var ok bool
 
+	// Get the config file path
+	if serverKubeConfig != "" {
+		kubeConfig = serverKubeConfig
+	} else {
+		if kubeConfig, ok = os.LookupEnv("KUBECONFIG"); ok != true {
+			kubeConfig = filepath.Join(homedir.HomeDir(), ".kube", "config")
+		}
+	}
+
+	// Check config file:
+	fInfo, err := os.Stat(kubeConfig)
+	if os.IsNotExist(err) {
+		// NOTE: If config file does not exist, assume using pod configuration.
+		err = fmt.Errorf("The Kubernetes configuration file '%s' doesn't exist", kubeConfig)
+		kubeConfig = ""
+		return
+	}
+
+	// Check error codes.
+	if fInfo.IsDir() {
+		err = fmt.Errorf("The Kubernetes configuration path '%s' is a direcory", kubeConfig)
+		return
+	}
+	if os.IsPermission(err) {
+		err = fmt.Errorf("Can't open Kubernetes configuration file '%s'", kubeConfig)
+		return
+	}
+
+	return
+}
+
+func serverRun(cmd *cobra.Command, args []string) {
 	// Set up signals so we handle the first shutdown signal gracefully:
 	stopCh := signals.SetupSignalHandler()
 
 	// Load the Kubernetes configuration:
 	var config *rest.Config
-	_, err = os.Stat(serverKubeConfig)
-	if os.IsNotExist(err) {
-		glog.Infof(
-			"The Kubernetes configuration file '%s' doesn't exist, will try to use the "+
-				"in-cluster configuration",
-			serverKubeConfig,
-		)
-		config, err = rest.InClusterConfig()
-		if err != nil {
-			glog.Fatalf(
-				"Error loading in-cluster REST client configuration: %s",
-				err.Error(),
-			)
-		}
-	} else {
-		config, err = clientcmd.BuildConfigFromFlags(serverKubeAddress, serverKubeConfig)
+
+	kubeConfig, err := kubeConfigPath(serverKubeConfig)
+	if err == nil {
+		// If error is nil, we have a valid kubeConfig file:
+		config, err = clientcmd.BuildConfigFromFlags(serverKubeAddress, kubeConfig)
 		if err != nil {
 			glog.Fatalf(
 				"Error loading REST client configuration from file '%s': %s",
-				serverKubeConfig,
-				err.Error(),
+				kubeConfig, err,
 			)
 		}
+	} else if kubeConfig == "" {
+		glog.Infof("Info: %s", err)
+
+		// If kubeConfig is "", file is missing, in this case we will
+		// try to use in-cluster configuration.
+		glog.Info("Try to use the in-cluster configuration")
+		config, err = rest.InClusterConfig()
+
+		// Catch in-cluster configuration error:
+		if err != nil {
+			glog.Fatalf("Error loading in-cluster REST client configuration: %s", err)
+		}
+	} else {
+		// Catch all errors:
+		glog.Fatalf("Error: %s", err)
 	}
 
 	// Create the Kuberntes API client:
