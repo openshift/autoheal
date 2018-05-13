@@ -25,6 +25,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
 
 	"github.com/golang/glog"
@@ -397,9 +398,11 @@ func (c *Connection) rawGet(path string, query url.Values) (output []byte, err e
 	c.setAccept(request)
 	if glog.V(2) {
 		glog.Infof("Sending GET request to '%s'.", address)
+	}
+	if glog.V(3) {
 		glog.Info("Request headers:\n")
 		for key, val := range request.Header {
-			glog.Infof("	%s: %v", key, val)
+			glog.Infof("	%s: %v", key, filterHeader(key, val))
 		}
 	}
 	response, err := c.client.Do(request)
@@ -414,11 +417,11 @@ func (c *Connection) rawGet(path string, query url.Values) (output []byte, err e
 	if err != nil {
 		return
 	}
-	if glog.V(2) {
-		glog.Infof("Response body:\n%s", c.indent(output))
+	if glog.V(3) {
+		glog.Infof("Response body:\n%s", c.indent(filterJsonBytes(output)))
 		glog.Info("Response headers:")
 		for key, val := range response.Header {
-			glog.Infof("	%s: %v", key, val)
+			glog.Infof("	%s: %v", key, filterHeader(key, val))
 		}
 
 	}
@@ -467,10 +470,12 @@ func (c *Connection) rawPost(path string, query url.Values, input []byte) (outpu
 	c.setAccept(request)
 	if glog.V(2) {
 		glog.Infof("Sending POST request to '%s'.", address)
-		glog.Infof("Request body:\n%s", c.indent(input))
+	}
+	if glog.V(3) {
+		glog.Infof("Request body:\n%s", c.indent(filterJsonBytes(input)))
 		glog.Infof("Request headers:")
 		for key, val := range request.Header {
-			glog.Infof("	%s: %v", key, val)
+			glog.Infof("	%s: %v", key, filterHeader(key, val))
 		}
 	}
 	response, err := c.client.Do(request)
@@ -485,8 +490,8 @@ func (c *Connection) rawPost(path string, query url.Values, input []byte) (outpu
 	if err != nil {
 		return
 	}
-	if glog.V(2) {
-		glog.Infof("Response body:\n%s", c.indent(output))
+	if glog.V(3) {
+		glog.Infof("Response body:\n%s", c.indent(filterJsonBytes(output)))
 		glog.Info("Response headers:")
 		for key, val := range response.Header {
 			glog.Infof("	%s: %v", key, val)
@@ -532,4 +537,50 @@ func (c *Connection) indent(data []byte) []byte {
 		return data
 	}
 	return buffer.Bytes()
+}
+
+var passwordFilterRegex = regexp.MustCompile("(?i:password|token|authorization|key)")
+
+func filterJsonBytes(bytes []byte) []byte {
+	if len(bytes) == 0 {
+		return bytes
+	}
+	var jsonObj interface{}
+	err := json.Unmarshal(bytes, &jsonObj)
+	if err != nil {
+		glog.Warningf("Error parsing: %v", err)
+		return []byte{}
+	}
+	jsonObj = filterJsonObject(jsonObj)
+	ret, err := json.Marshal(jsonObj)
+	if err != nil {
+		glog.Warningf("Error encoding: %v", err)
+		return []byte{}
+	}
+	return ret
+}
+
+func filterJsonObject(object interface{}) interface{} {
+	switch object := object.(type) {
+	case map[string]interface{}: //JSON dicts
+		for key, val := range object {
+			if passwordFilterRegex.MatchString(key) {
+				object[key] = "REDACTED"
+			} else {
+				object[key] = filterJsonObject(val)
+			}
+		}
+	case []interface{}: //JSON Arrays
+		for index, val := range object {
+			object[index] = filterJsonObject(val)
+		}
+	}
+	return object
+}
+
+func filterHeader(key string, val []string) []string {
+	if passwordFilterRegex.MatchString(key) {
+		return []string{"REDACTED"}
+	}
+	return val
 }

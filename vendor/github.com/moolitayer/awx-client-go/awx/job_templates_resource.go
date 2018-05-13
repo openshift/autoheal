@@ -70,6 +70,8 @@ func (r *JobTemplatesGetRequest) Send() (response *JobTemplatesGetResponse, err 
 		response.results[i] = new(JobTemplate)
 		response.results[i].id = output.Results[i].Id
 		response.results[i].name = output.Results[i].Name
+		response.results[i].askLimitOnLaunch = output.Results[i].AskLimitOnLaunch
+		response.results[i].askVarsOnLaunch = output.Results[i].AskVarsOnLaunch
 	}
 	return
 }
