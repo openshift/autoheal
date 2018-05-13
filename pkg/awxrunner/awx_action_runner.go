@@ -139,6 +139,19 @@ func (r *Runner) launchAWXJob(
 ) error {
 	templateId := template.Id()
 	templateName := template.Name()
+
+	// Verify limit prompt on launch
+	if action.Limit != "" && !template.AskLimitOnLaunch() {
+		glog.Warningf("About to launch template '%s' with limit '%s', but 'prompt-on-launch' is false. Limit will be ignored",
+			templateName, action.Limit)
+	}
+
+	// Verify extra-vars prompt on launch
+	if action.ExtraVars != nil && !template.AskVarsOnLaunch() {
+		glog.Warningf("About to launch template '%s' with extra-vars, but 'prompt-on-launch' is false. Extra Variables will be ignored",
+			templateName)
+	}
+
 	launchResource := connection.JobTemplates().Id(templateId).Launch()
 	response, err := launchResource.Post().
 		ExtraVars(action.ExtraVars).
