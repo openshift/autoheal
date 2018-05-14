@@ -58,6 +58,9 @@ func (r *JobTemplateGetRequest) Send() (response *JobTemplateGetResponse, err er
 	response.result = new(JobTemplate)
 	response.result.id = output.Id
 	response.result.name = output.Name
+	response.result.askLimitOnLaunch = output.AskLimitOnLaunch
+	response.result.askVarsOnLaunch = output.AskVarsOnLaunch
+
 	return
 }
 
