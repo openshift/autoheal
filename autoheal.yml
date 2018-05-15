@@ -34,8 +34,8 @@ awx:
   proxy: http://my-proxy.example.com:3128
 
   #
-  # Reference to the Kubernetes secret that contains the user name and password
-  # to use to connect to the AWX API.
+  # Reference to the Kubernetes secret expected to contain "username" and
+  # "password" keys to use to connect to the AWX API.
   #
   credentialsRef:
     namespace: my-namespace
