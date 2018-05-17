@@ -40,6 +40,7 @@ import (
 type Config struct {
 	awx        *AWXConfig
 	throttling *ThrottlingConfig
+	etcd       *EtcdConfig
 	rules      *RulesConfig
 	listener   *eventListener
 
@@ -61,6 +62,13 @@ func (c *Config) AWX() *AWXConfig {
 //
 func (c *Config) Throttling() *ThrottlingConfig {
 	return c.throttling
+}
+
+// EtcdConfig is a read only view of the section of the configuration that describes how to
+// interact with etcd.
+//
+func (c *Config) Etcd() *EtcdConfig {
+	return c.etcd
 }
 
 // Rules returns the list of healing rules defined in the configuration.
@@ -223,7 +231,12 @@ func (c *Config) mergeFile(file string) error {
 			return err
 		}
 	}
-
+	if decoded.Etcd != nil {
+		err = c.etcd.merge(decoded.Etcd)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
