@@ -5,6 +5,10 @@ RUN hack/build-go.sh
 
 FROM alpine:latest
 RUN apk --no-cache add ca-certificates
+
+RUN useradd --no-create-home autoheal
+USER autoheal
+EXPOSE 9099
 WORKDIR /root/
 COPY --from=builder /go/src/github.com/openshift/autoheal/_output/local/bin/linux/amd64/autoheal .
 CMD ["./autoheal"]
