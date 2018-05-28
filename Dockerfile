@@ -3,8 +3,7 @@ WORKDIR /go/src/github.com/openshift/autoheal/
 COPY . .
 RUN hack/build-go.sh
 
-FROM alpine:latest
-RUN apk --no-cache add ca-certificates
+FROM centos:7
 
 RUN useradd --no-create-home autoheal
 USER autoheal
