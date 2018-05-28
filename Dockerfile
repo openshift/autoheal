@@ -1,3 +1,6 @@
+# Development build from source.
+# See images/autoheal/Dockerfile for downstream build from rpms.
+
 FROM golang:1.10 as builder
 WORKDIR /go/src/github.com/openshift/autoheal/
 COPY . .
@@ -15,4 +18,4 @@ COPY --from=builder /go/src/github.com/openshift/autoheal/_output/local/bin/linu
 LABEL io.k8s.display-name="OpenShift Autoheal"
 LABEL io.k8s.description="OpenShift Autoheal"
 LABEL io.openshift.tags="openshift"
-CMD ["./autoheal"]
+ENTRYPOINT ./autoheal
