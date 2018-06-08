@@ -15,7 +15,7 @@ function cleanup() {
 }
 trap "cleanup" EXIT
 
-os::util::ensure::gopath_binary_exists imagebuilder
+os::util::ensure::gopath_binary_exists imagebuilder github.com/openshift/imagebuilder/cmd/imagebuilder
 # image builds require RPMs to have been built
 os::build::release::check_for_rpms
 
