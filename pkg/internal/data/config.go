@@ -32,6 +32,9 @@ type Config struct {
 	// Throttling contains the healing rule execution throttling details.
 	Throttling *ThrottlingConfig
 
+	// EtcdConfig contains details about etcd.
+	Etcd *EtcdConfig
+
 	// The list of healing rules. Note that we use here an interface because we don't know in
 	// advance what version of the rule type will be used in the configuration file. So we accept
 	// any thing and we will try to convert them to the internal unversioned rule type using the
@@ -92,4 +95,9 @@ type TLSConfig struct {
 //
 type ThrottlingConfig struct {
 	Interval string `json:"interval,omitempty"`
+}
+
+// EtcdConfig is etcd related configurations
+type EtcdConfig struct {
+	Endpoint string `json:"endpoint,omitempty"`
 }

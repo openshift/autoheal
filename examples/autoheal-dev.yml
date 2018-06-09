@@ -58,3 +58,7 @@ rules:
             - -c
             - print("Hello {{ $labels.name }}!")
           restartPolicy: Never
+
+etcd:
+  # http://autoheal-etcd.openshift-autoheal.svc.cluster.local:80
+  endpoint: "http://127.0.0.1:2379"

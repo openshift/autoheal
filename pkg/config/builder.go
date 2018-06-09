@@ -23,6 +23,7 @@ import (
 	"sync"
 	"time"
 
+	etcd "github.com/coreos/etcd/client"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/client-go/kubernetes"
@@ -35,7 +36,10 @@ import (
 //
 type Builder struct {
 	// The Kubernetes client that will be used to load Kubernetes objects:
-	client kubernetes.Interface
+	k8sClient kubernetes.Interface
+
+	// The etcd client that will be used to interact with etcd:
+	etcdClient etcd.Client
 
 	// The names of the configuration files, in the order that they should be loaded:
 	files []string
@@ -60,13 +64,20 @@ func NewBuilder() *Builder {
 	return b
 }
 
-// Client sets the Kubernetes client that the configuration loader will use to load Kubernetes
+// K8sClient sets the Kubernetes client that the configuration loader will use to load Kubernetes
 // objects referenced from the configuration, like secrets or configuration maps. If this is not
 // given then any reference to a Kubernetes object will cause an error when the configuration is
 // loaded.
 //
-func (b *Builder) Client(client kubernetes.Interface) *Builder {
-	b.client = client
+func (b *Builder) K8sClient(client kubernetes.Interface) *Builder {
+	b.k8sClient = client
+	return b
+}
+
+// EtcdClient .
+//
+func (b *Builder) EtcdClient(client etcd.Client) *Builder {
+	b.etcdClient = client
 	return b
 }
 
@@ -96,7 +107,7 @@ func (b *Builder) Build() (c *Config, err error) {
 		awx: &AWXConfig{
 			ca: new(bytes.Buffer),
 			jobStatusCheckInterval: 5 * time.Minute,
-			client:                 b.client,
+			client:                 b.k8sClient,
 		},
 		throttling: &ThrottlingConfig{
 			interval: 1 * time.Hour,
@@ -108,6 +119,9 @@ func (b *Builder) Build() (c *Config, err error) {
 		files:         b.files,
 		loadMutex:     &sync.Mutex{},
 		listenerMutex: &sync.Mutex{},
+		etcd: &EtcdConfig{
+			endpoint: "http://autoheal-etcd.openshift-autoheal.svc.cluster.local:80",
+		},
 	}
 
 	// Do the initial load of the configuration files:

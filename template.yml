@@ -35,6 +35,8 @@ parameters:
   description: The BASE64 encoded content of the configuration file.
 - name: SECRET
   description: The BASE64 encoded secret used to encrypt OAuth session cookies.
+- name: ETCD_IMAGE
+  description: The name of the etcd image.
 
 objects:
 
@@ -215,3 +217,43 @@ objects:
     - name: autoheal
       port: 443
       targetPort: 8443
+
+- apiVersion: apps/v1beta1
+  kind: Deployment
+  metadata:
+    name: autoheal-etcd
+    labels:
+      app: autoheal-etcd
+  spec:
+    selector:
+      matchLabels:
+        app: autoheal-etcd
+    replicas: 1
+    template:
+      metadata:
+        labels:
+          app: autoheal-etcd
+    containers:
+    - name: etcd
+      image: ${ETCD_IMAGE}
+      command:
+      - "etcd"
+      - "--listen-client-urls=http://0.0.0.0:4001"
+      - "--advertise-client-urls=http://0.0.0.0:4001"
+      - "--client-cert-auth=false"
+      ports:
+      - containerPort: 4001
+
+- apiVersion: v1
+  kind: Service
+  metadata:
+    labels:
+      app: autoheal-etcd
+    name: autoheal-etcd
+  spec:
+    ports:
+    - port: 80
+      protocol: TCP
+      targetPort: 4001
+    selector:
+      app: autoheal-etcd

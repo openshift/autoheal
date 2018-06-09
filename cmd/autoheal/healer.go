@@ -25,6 +25,7 @@ import (
 	"net/http"
 	"time"
 
+	etcd "github.com/coreos/etcd/client"
 	"github.com/golang/glog"
 	"golang.org/x/sync/syncmap"
 	"k8s.io/apimachinery/pkg/util/runtime"
@@ -61,6 +62,9 @@ type Healer struct {
 
 	// Kubernetes client.
 	k8sClient kubernetes.Interface
+
+	// Etcd client.
+	etcdClient etcd.Client
 
 	// The current set of healing rules.
 	rulesCache *syncmap.Map
@@ -121,7 +125,7 @@ func (b *HealerBuilder) Build() (h *Healer, err error) {
 		return
 	}
 	cfg, err = config.NewBuilder().
-		Client(b.k8sClient).
+		K8sClient(b.k8sClient).
 		Files(b.configFiles).
 		Build()
 	if err != nil {
@@ -140,9 +144,21 @@ func (b *HealerBuilder) Build() (h *Healer, err error) {
 		return
 	}
 
+	// Create the etcd API client:
+	etcdConfig := etcd.Config{
+		Endpoints: []string{cfg.Etcd().Endpoint()},
+		Transport: etcd.DefaultTransport,
+	}
+
+	etcdClient, err := etcd.New(etcdConfig)
+	if err != nil {
+		glog.Infof("Info: %s", err)
+	}
+
 	// Allocate the healer:
 	h = new(Healer)
 	h.k8sClient = b.k8sClient
+	h.etcdClient = etcdClient
 	h.config = cfg
 	h.actionMemory = actionMemory
 
@@ -203,6 +219,14 @@ func (h *Healer) Run(stopCh <-chan struct{}) error {
 	h.config.AddChangeListener(func(_ *config.ChangeEvent) {
 		h.reloadRulesCache()
 	})
+
+	glog.Infof("Trying to connect to etcd server...")
+	ver, err := h.etcdClient.GetVersion(context.Background())
+	if err != nil {
+		glog.Fatalf("Error connecting to etcd %s", err) // Fatalf? Infof?
+	} else {
+		glog.Infof("Etcd server version: %s available at %s\n", ver.Server, h.etcdClient.Endpoints())
+	}
 
 	// Start the web server:
 	http.Handle("/metrics", metrics.Handler())
